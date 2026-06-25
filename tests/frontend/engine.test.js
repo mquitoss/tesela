@@ -1,0 +1,221 @@
+import { describe, it, expect } from "vitest";
+
+const join = require("../../src/engine/join.js");
+const scoring = require("../../src/engine/scoring.js");
+const color = require("../../src/engine/color.js");
+const geo = require("../../src/engine/geo.js");
+const bundle = require("../../src/engine/bundle.js");
+const format = require("../../src/engine/format.js");
+
+const square = (id, nom) => ({
+  type: "Feature",
+  properties: { ID: id, NOM: nom },
+  geometry: {
+    type: "Polygon",
+    coordinates: [
+      [
+        [0, 0],
+        [0, 1],
+        [1, 1],
+        [1, 0],
+        [0, 0],
+      ],
+    ],
+  },
+});
+
+describe("join.normalizeName", () => {
+  it("quita acentos, artículo inicial y colapsa espacios", () => {
+    expect(join.normalizeName("el Raval")).toBe("raval");
+    expect(join.normalizeName("la  Barceloneta")).toBe("barceloneta");
+    expect(join.normalizeName("Gràcia")).toBe("gracia");
+    expect(join.normalizeName(null)).toBe("");
+  });
+});
+
+describe("join.joinByKey", () => {
+  const geojson = {
+    type: "FeatureCollection",
+    features: [square(1, "el Raval"), square(2, "Gràcia"), square(3, "Sants")],
+  };
+  const cfg = { property: "ID", keyField: "codi", type: "number", nameFallback: true, nameField: "nom" };
+
+  it("une por clave canónica", () => {
+    const inds = [
+      { codi: 1, nom: "Raval", v: 10 },
+      { codi: 2, nom: "Gracia", v: 20 },
+    ];
+    const r = join.joinByKey(geojson, inds, cfg);
+    expect(r.matched).toBe(2);
+    expect(r.unmatched).toBe(1);
+    expect(r.zones[0].ind.v).toBe(10);
+    expect(r.zones[2].ind).toBeNull();
+  });
+
+  it("cae a fallback por nombre normalizado cuando no hay clave", () => {
+    const inds = [{ nom: "el Raval", v: 99 }]; // sin codi
+    const r = join.joinByKey(geojson, inds, cfg);
+    expect(r.matched).toBe(1);
+    expect(r.usedNameFallback).toBe(1);
+    expect(r.zones[0].ind.v).toBe(99);
+  });
+
+  it("no usa fallback si nameFallback es false", () => {
+    const inds = [{ nom: "el Raval", v: 99 }];
+    const r = join.joinByKey(geojson, inds, { ...cfg, nameFallback: false });
+    expect(r.matched).toBe(0);
+  });
+});
+
+describe("scoring.minmax", () => {
+  it("excluye nulls del rango y los mapea a null", () => {
+    expect(scoring.minmax([0, 5, 10])).toEqual([0, 0.5, 1]);
+    expect(scoring.minmax([0, null, 10])).toEqual([0, null, 1]);
+  });
+  it("span 0 → 0.5 neutro", () => {
+    expect(scoring.minmax([7, 7, 7])).toEqual([0.5, 0.5, 0.5]);
+  });
+});
+
+describe("scoring.computeScores", () => {
+  const cfg = {
+    factors: [
+      { key: "dens", indicator: "densitat", kind: "minmax", sign: 1 },
+      { key: "pob", indicator: "poblacio", kind: "minmax", sign: 1 },
+    ],
+    baseMetric: "densitat",
+    keyField: "codi",
+  };
+
+  it("puntúa por factores ponderados y normaliza a 0..100", () => {
+    const inds = [
+      { codi: 1, densitat: 100, poblacio: 1000 },
+      { codi: 2, densitat: 50, poblacio: 500 },
+    ];
+    const r = scoring.computeScores(inds, { dens: 1, pob: 1 }, cfg);
+    expect(r.map((x) => x.score)).toEqual([100, 0]);
+  });
+
+  it("excluye del ranking las zonas sin baseMetric (score null)", () => {
+    const inds = [
+      { codi: 1, densitat: 100, poblacio: 1000 },
+      { codi: 2, densitat: null, poblacio: 500 },
+    ];
+    const r = scoring.computeScores(inds, { dens: 1, pob: 1 }, cfg);
+    expect(r[1].score).toBeNull();
+    expect(r[1].contributions).toBeNull();
+  });
+
+  it("un factor penalty siempre resta", () => {
+    const penaltyCfg = {
+      factors: [
+        { key: "dens", indicator: "densitat", kind: "minmax", sign: 1 },
+        { key: "pen", indicator: "flag", kind: "penalty" },
+      ],
+      baseMetric: "densitat",
+      keyField: "codi",
+    };
+    const inds = [
+      { codi: 1, densitat: 100, flag: true },
+      { codi: 2, densitat: 100, flag: false },
+    ];
+    const r = scoring.computeScores(inds, { dens: 0, pen: 1 }, penaltyCfg);
+    // El penalizado (flag=true) recibe contribución negativa → menor score.
+    expect(r[0].contributions.pen).toBeLessThan(0);
+    expect(r[0].score).toBeLessThan(r[1].score);
+  });
+
+  it("sign -1 invierte el factor (favorece valores bajos)", () => {
+    const inds = [
+      { codi: 1, densitat: 100 },
+      { codi: 2, densitat: 50 },
+    ];
+    const cheap = { factors: [{ key: "dens", indicator: "densitat", kind: "minmax", sign: -1 }], baseMetric: "densitat", keyField: "codi" };
+    const r = scoring.computeScores(inds, { dens: 1 }, cheap);
+    expect(r[0].score).toBeLessThan(r[1].score); // el de mayor densidad puntúa menos
+  });
+});
+
+describe("color", () => {
+  it("extent excluye huecos", () => {
+    const ext = color.extent([{ v: 10 }, { v: null }, { v: 30 }], (z) => z.v);
+    expect(ext).toEqual({ min: 10, max: 30 });
+  });
+  it("colorForValue null → null (no se pinta como mínimo)", () => {
+    expect(color.colorForValue(null, { min: 0, max: 10 })).toBeNull();
+  });
+  it("rampColor recorta t a [0,1]", () => {
+    expect(color.rampColor(-5)).toMatch(/^rgb\(/);
+    expect(color.rampColor(5)).toMatch(/^rgb\(/);
+  });
+  it("usa la rampa de la config si se pasa", () => {
+    const ramp = [
+      [0, 0, 0],
+      [255, 255, 255],
+    ];
+    expect(color.rampColor(1, ramp)).toBe("rgb(255,255,255)");
+    expect(color.rampColor(0, ramp)).toBe("rgb(0,0,0)");
+  });
+});
+
+describe("geo", () => {
+  const feat = square(1, "x");
+  it("keyFromFeature respeta el tipo", () => {
+    expect(geo.keyFromFeature(feat, "ID", "number")).toBe(1);
+    expect(geo.keyFromFeature(feat, "ID", "string")).toBe("1");
+    expect(geo.keyFromFeature(feat, "NOPE")).toBeNull();
+  });
+  it("representativePoint da el centroide del anillo exterior", () => {
+    expect(geo.representativePoint(feat)).toEqual({ lat: 0.5, lng: 0.5 });
+  });
+  it("pointInPolygon dentro/fuera", () => {
+    expect(geo.pointInPolygon({ lat: 0.5, lng: 0.5 }, feat)).toBe(true);
+    expect(geo.pointInPolygon({ lat: 2, lng: 2 }, feat)).toBe(false);
+  });
+  it("distanceMeters: puntos idénticos → 0", () => {
+    expect(geo.distanceMeters({ lat: 0, lng: 0 }, { lat: 0, lng: 0 })).toBe(0);
+  });
+  it("countWithinRadius cuenta solo dentro del radio", () => {
+    const center = { lat: 0, lng: 0 };
+    const pts = [{ lat: 0, lng: 0 }, { lat: 0.001, lon: 0 }, { lat: 5, lng: 5 }];
+    expect(geo.countWithinRadius(center, pts, 200)).toBe(2);
+  });
+});
+
+describe("bundle", () => {
+  const valid = { geo: { type: "FeatureCollection", features: [square(1, "x")] }, indicators: [{ codi: 1 }] };
+  it("isValidBundle exige geo + indicators no vacíos", () => {
+    expect(bundle.isValidBundle(valid)).toBe(true);
+    expect(bundle.isValidBundle({ geo: valid.geo, indicators: [] })).toBe(false);
+    expect(bundle.isValidBundle(null)).toBe(false);
+  });
+  it("selectDataSource elige el primer válido en la escalera", () => {
+    const r = bundle.selectDataSource({ embedded: null, url: valid });
+    expect(r.source).toBe("url");
+    expect(r.bundle.indicators.length).toBe(1);
+  });
+  it("availableLevels y getLevel single-level", () => {
+    expect(bundle.availableLevels(valid)).toEqual(["default"]);
+    expect(bundle.getLevel(valid, "default").indicators.length).toBe(1);
+  });
+  it("multi-nivel respeta el orden preferido", () => {
+    const ml = { levels: { seccio: { geo: valid.geo, indicators: [] }, barri: { geo: valid.geo, indicators: [{ codi: 1 }] } } };
+    expect(bundle.availableLevels(ml, ["barri", "seccio"])).toEqual(["barri", "seccio"]);
+    expect(bundle.getLevel(ml, "barri").indicators.length).toBe(1);
+  });
+});
+
+describe("format", () => {
+  it("formatNumber con coma decimal y unidad; null → sin dato", () => {
+    expect(format.formatNumber(1234.5, { decimals: 1, unit: "hab/km²" })).toBe("1234,5 hab/km²");
+    expect(format.formatNumber(null)).toBe("sin dato");
+  });
+  it("formatPercent", () => {
+    expect(format.formatPercent(5.56)).toBe("5,6%");
+  });
+  it("formatValue despacha por descriptor", () => {
+    expect(format.formatValue(3, { format: "number" })).toBe("3");
+    expect(format.formatValue("hola", { format: "plain" })).toBe("hola");
+    expect(format.formatValue(null, { format: "percent" })).toBe("sin dato");
+  });
+});
