@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.2.0 — sin publicar
+## [Unreleased]
+
+## [0.2.0] - 2026-08-23
 
 ### Añadido
 
