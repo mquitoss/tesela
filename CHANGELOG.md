@@ -9,6 +9,9 @@
   ausentes.
 - Búsqueda estable y configurable de zonas, integrada en el shell sin backend.
 - Formatos `boolean` y `duration` con etiquetas localizables.
+- Selección persistente, panes, overlays tile/markers, etiquetas por zoom y
+  control de capas declarativos.
+- Gestor Leaflet con reconstrucción y cleanup idempotentes.
 
 ### Corregido
 

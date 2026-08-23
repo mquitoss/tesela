@@ -22,7 +22,7 @@ No añadas nombres de métricas, fuentes o reglas de negocio a `src/engine/*`.
 | título, subtítulo y color | `branding` |
 | locale, búsqueda y textos del shell | `ui.locale`, `ui.search`, `ui.labels` |
 | contenedores personalizados | `mounts` |
-| centro, zoom y mapa base | `map` |
+| centro, zoom, capas, selección y mapa base | `map` |
 | unión geometría/datos | `join.property`, `join.keyField`, `join.type` |
 | métricas visibles | `indicators` y `detail.fields` |
 | coropleta | `color.metric`, `color.ramp`, `color.noData` |
@@ -61,6 +61,8 @@ HTML de fuentes externas.
 - `null` es un hueco de primera clase y nunca se convierte en cero.
 - Los campos usan formatos declarativos; `duration` recibe minutos y `boolean`
   requiere booleanos reales. Localiza sus etiquetas desde `ui` o el campo.
+- Overlays, puntos de referencia y etiquetas se declaran en `map`; no codifiques
+  nombres regionales dentro de `src/ui/map-layers.js`.
 - La clave canónica tiene prioridad; el nombre solo puede ser fallback explícito.
 - El motor no conoce el dominio.
 - Los errores de datos se corrigen en el Source, no se silencian en la UI.

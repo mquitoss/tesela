@@ -68,11 +68,55 @@ function fakeBrowser() {
     getElementById: (id) => elements.get(id) || null,
     addEventListener() {},
   };
-  const bounds = { isValid: () => true };
-  const map = { setView() { return this; }, fitBounds() {} };
+  const bounds = {
+    isValid: () => true,
+    contains: () => true,
+    pad() { return this; },
+  };
+  const mapLayers = new Set();
+  const panes = new Map();
+  const mapListeners = new Map();
+  const map = {
+    setView() { return this; },
+    fitBounds() {},
+    createPane(name) { const pane = { style: {} }; panes.set(name, pane); return pane; },
+    getPane(name) { return panes.get(name); },
+    hasLayer(layer) { return mapLayers.has(layer); },
+    getZoom: () => 12,
+    getBounds: () => bounds,
+    on(event, handler) { mapListeners.set(event, handler); return this; },
+    off(event) { if (event) mapListeners.delete(event); else mapListeners.clear(); return this; },
+    remove() { mapLayers.clear(); },
+  };
+  const leafLayer = (extra = {}) => ({
+    ...extra,
+    addTo(target) {
+      if (target === map) mapLayers.add(this);
+      else target.addLayer(this);
+      return this;
+    },
+    remove() { mapLayers.delete(this); },
+  });
   const L = {
     map: () => map,
-    tileLayer: () => ({ addTo: () => ({}) }),
+    tileLayer: () => leafLayer(),
+    divIcon: (options) => options,
+    marker: (point, options) => leafLayer({
+      point,
+      options,
+      getLatLng: () => point,
+    }),
+    layerGroup: (initial = []) => {
+      const children = [...initial];
+      return leafLayer({
+        addLayer(layer) { children.push(layer); return this; },
+        clearLayers() { children.length = 0; return this; },
+        getLayers: () => children,
+      });
+    },
+    control: {
+      layers: () => leafLayer(),
+    },
     geoJSON: (geojson, options) => {
       for (const feature of geojson.features || []) {
         options.style(feature);
@@ -83,11 +127,10 @@ function fakeBrowser() {
           getBounds: () => bounds,
         });
       }
-      return {
-        addTo() { return this; },
-        remove() {},
+      return leafLayer({
         getBounds: () => bounds,
-      };
+        bringToFront() {},
+      });
     },
   };
   const context = browserContext();
@@ -147,7 +190,7 @@ describe("shell zero-build", () => {
       "src/engine/namespace.js", "app.config.js", "data/bundle.js",
       "src/engine/format.js", "src/engine/geo.js", "src/engine/join.js", "src/engine/search.js",
       "src/engine/scoring.js", "src/engine/color.js", "src/engine/bundle.js",
-      "src/engine/config.js", "src/engine/extensions.js", "src/adapters/domain.js",
+      "src/engine/config.js", "src/engine/extensions.js", "src/ui/map-layers.js", "src/adapters/domain.js",
       "src/app.js",
     ]) runBrowserScript(context, path);
 
@@ -171,7 +214,7 @@ describe("shell zero-build", () => {
     for (const path of [
       "src/engine/format.js", "src/engine/geo.js", "src/engine/join.js", "src/engine/search.js",
       "src/engine/scoring.js", "src/engine/color.js", "src/engine/bundle.js",
-      "src/engine/config.js", "src/engine/extensions.js", "src/adapters/domain.js",
+      "src/engine/config.js", "src/engine/extensions.js", "src/ui/map-layers.js", "src/adapters/domain.js",
       "src/app.js",
     ]) runBrowserScript(context, path);
     expect(context.Tesela.app.getState().zones).toBe(1);
@@ -215,6 +258,7 @@ describe("distribución como submódulo", () => {
     expect(html).toContain('href="src/ui/tesela.css"');
     expect(html.indexOf('src="src/engine/search.js"'))
       .toBeGreaterThan(html.indexOf('src="src/engine/join.js"'));
+    expect(html).toContain('src="src/ui/map-layers.js"');
     expect(html).not.toContain("<style>");
     expect(existsSync(resolve(process.cwd(), "templates/submodule-host/index.html"))).toBe(true);
     expect(existsSync(resolve(process.cwd(), "templates/submodule-host/scripts/source.py"))).toBe(true);

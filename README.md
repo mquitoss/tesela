@@ -80,6 +80,11 @@ campos aceptan los formatos `plain`, `number`, `percent`, `boolean` y `duration`
 las etiquetas booleanas, unidades temporales y textos de búsqueda pertenecen al
 host y pueden localizarse sin modificar el motor.
 
+`map.selection`, `map.overlays`, `map.labels`, `map.panes` y `map.layerControl`
+describen navegación y capas sin acoplar el shell a una región. Los overlays tile
+y markers pueden agruparse bajo un mismo toggle y se limpian al reconstruir el
+mapa.
+
 ## Slots de UI
 
 La primera API de extensión incluye:
@@ -156,6 +161,7 @@ conservan durante la serie `0.x`. Consulta
 | `src/engine/config.js` | Validación declarativa |
 | `src/engine/extensions.js` | Slots aislados |
 | `src/ui/tesela.css` | Estilos públicos reutilizables |
+| `src/ui/map-layers.js` | Capas, selección, etiquetas y ciclo de vida Leaflet |
 | `src/engine/*.js` | Motor agnóstico |
 | `src/app.js` | Shell Leaflet/DOM |
 | `src/adapters/domain.js` | Hooks y slots de dominio |

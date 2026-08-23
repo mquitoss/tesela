@@ -15,6 +15,7 @@
   const runtime = Tesela.runtime || {};
   const E = Tesela.engine || {};
   const A = Tesela.adapters || {};
+  const UI = Tesela.ui || {};
   const CONFIG = runtime.resolveConfig
     ? runtime.resolveConfig(window)
     : (window.TESELA_CONFIG || window.SSM_CONFIG || {});
@@ -33,8 +34,8 @@
     extent: { min: 0, max: 0 },
     selected: null,
     query: "",
-    layer: null,
-    layersByKey: new Map(),
+    mapLayers: null,
+    baseLayer: null,
     refreshSearch: null,
     map: null,
   };
@@ -215,34 +216,13 @@
   }
 
   function render() {
-    if (state.layer) state.layer.remove();
-    state.layersByKey.clear();
-    const features = state.zones.map((z) => z.feature);
-    const geo = { type: "FeatureCollection", features };
-    const byFeature = new Map();
-    state.zones.forEach((z) => byFeature.set(z.feature, z));
-    state.layer = L.geoJSON(geo, {
-      style: (f) => styleZone(byFeature.get(f) || { key: null, ind: null }),
-      onEachFeature: (f, layer) => {
-        const zone = byFeature.get(f);
-        if (!zone) return;
-        state.layersByKey.set(String(zone.key), layer);
-        layer.bindTooltip(tooltipFor(zone), { sticky: true });
-        layer.on("mouseover", () =>
-          layer.setStyle({
-            weight: 2,
-            color: (CONFIG.branding && CONFIG.branding.accent) || "#5EEAD4",
-          }),
-        );
-        layer.on("mouseout", () => layer.setStyle(styleZone(zone)));
-        layer.on("click", () => selectZone(zone));
-      },
-    }).addTo(state.map);
+    state.mapLayers?.refreshZoneStyles();
   }
 
   // ---- panel de detalle ------------------------------------------------------
   function selectZone(zone, focusDetail) {
     state.selected = zone;
+    state.mapLayers?.setSelection(zone);
     const panel = mount("detail");
     if (!panel) return;
     const fields = (CONFIG.detail && CONFIG.detail.fields) || CONFIG.indicators || [];
@@ -272,12 +252,11 @@
   }
 
   function focusZone(zone) {
-    const layer = state.layersByKey.get(String(zone.key));
-    const bounds = layer && typeof layer.getBounds === "function" ? layer.getBounds() : null;
-    if (bounds && typeof bounds.isValid === "function" && bounds.isValid()) {
-      const search = ui.search || {};
-      state.map.fitBounds(bounds, { maxZoom: search.maxZoom || 12, padding: [20, 20] });
-    }
+    const search = ui.search || {};
+    state.mapLayers?.focusZone(zone, {
+      maxZoom: search.maxZoom || 12,
+      padding: [20, 20],
+    });
     selectZone(zone, true);
   }
 
@@ -523,17 +502,48 @@
       m.center || [0, 0],
       m.zoom ?? 2,
     );
-    L.tileLayer((m.tiles && m.tiles.url) || "", {
+    state.baseLayer = L.tileLayer((m.tiles && m.tiles.url) || "", {
       attribution: (m.tiles && m.tiles.attribution) || "",
     }).addTo(state.map);
 
     rescore();
-    render();
+    if (typeof UI.createMapLayerManager !== "function") {
+      showStartupError([label("missingMapLayers", "Falta el componente de capas de Tesela.")]);
+      return;
+    }
+    state.mapLayers = UI.createMapLayerManager({
+      L,
+      map: state.map,
+      mapConfig: m,
+      zones: state.zones,
+      styleForZone: styleZone,
+      tooltipForZone: tooltipFor,
+      onSelect: (zone) => selectZone(zone),
+      pointForZone: (zone) => E.representativePoint(zone.feature),
+      accent: CONFIG.branding?.accent,
+      document,
+    });
     buildConsole();
 
-    if (state.layer && state.layer.getBounds && state.layer.getBounds().isValid()) {
-      state.map.fitBounds(state.layer.getBounds(), { padding: [20, 20] });
+    const bounds = state.mapLayers.getBounds();
+    if (bounds?.isValid?.()) {
+      state.map.fitBounds(bounds, { padding: [20, 20] });
     }
+  }
+
+  function rebuildMapLayers() {
+    state.mapLayers?.rebuild({ zones: state.zones });
+    if (state.selected) state.mapLayers?.setSelection(state.selected);
+  }
+
+  function destroy() {
+    state.mapLayers?.destroy();
+    state.baseLayer?.remove?.();
+    state.map?.off?.();
+    state.map?.remove?.();
+    state.mapLayers = null;
+    state.baseLayer = null;
+    state.map = null;
   }
 
   function showStartupError(messages) {
@@ -544,7 +554,11 @@
     )));
   }
 
-  Tesela.app = Object.assign(Tesela.app || {}, { getState: stateSnapshot });
+  Tesela.app = Object.assign(Tesela.app || {}, {
+    destroy,
+    getState: stateSnapshot,
+    rebuild: rebuildMapLayers,
+  });
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", bootstrap);

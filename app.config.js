@@ -56,6 +56,31 @@
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
       },
+      panes: {
+        zones: { name: "tesela-zones", zIndex: 400, pointerEvents: "auto" },
+        context: { name: "tesela-context", zIndex: 450, pointerEvents: "none" },
+        selection: { name: "tesela-selection", zIndex: 610, pointerEvents: "none" },
+        labels: { name: "tesela-labels", zIndex: 620, pointerEvents: "none" },
+      },
+      selection: { enabled: true, pane: "selection" },
+      overlays: [{
+        id: "references",
+        label: "Referencias cartográficas",
+        type: "tile",
+        enabled: false,
+        pane: "context",
+        interactive: false,
+        url: "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png",
+        attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a>',
+      }],
+      labels: {
+        enabled: true,
+        label: "Nombres de zonas (zoom 14+)",
+        pane: "labels",
+        minZoom: 14,
+        boundsPadding: 0.15,
+      },
+      layerControl: { enabled: true, position: "topright", collapsed: true },
       bbox: [2.05, 41.32, 2.23, 41.47], // [oeste, sur, este, norte]
     },
 

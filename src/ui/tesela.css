@@ -25,6 +25,32 @@ body.tesela-layout {
   background: var(--tesela-panel);
 }
 .tesela-map, #ssm-map { height: 100vh; }
+.tesela-zone-path:focus { outline: none; }
+.tesela-zone-path:focus-visible {
+  outline: none;
+  stroke: var(--tesela-accent);
+  stroke-width: 3px;
+  filter: drop-shadow(0 0 2px rgb(255 255 255 / 90%));
+}
+.tesela-map-label-icon {
+  width: 0 !important;
+  height: 0 !important;
+  border: 0;
+  background: transparent;
+}
+.tesela-map-label {
+  display: inline-block;
+  width: max-content;
+  max-width: 180px;
+  transform: translate(-50%, -50%);
+  color: var(--tesela-ink);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 2px var(--tesela-bg), 0 0 3px var(--tesela-bg);
+  pointer-events: none;
+}
 .ssm-brand h1 { margin: 0 0 2px; font-size: 18px; }
 .tesela-version {
   display: inline-block;

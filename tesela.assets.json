@@ -16,7 +16,8 @@
       "src/engine/color.js",
       "src/engine/bundle.js",
       "src/engine/config.js",
-      "src/engine/extensions.js"
+      "src/engine/extensions.js",
+      "src/ui/map-layers.js"
     ],
     "defaultAdapter": "src/adapters/domain.js",
     "entrypoint": "src/app.js"

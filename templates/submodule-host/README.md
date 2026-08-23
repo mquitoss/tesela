@@ -13,8 +13,8 @@ python vendor/tesela/scripts/build_data.py \
   --key-field id
 ```
 
-4. Conserva el orden de scripts de `index.html`, incluido `search.js` después de
-   `join.js`.
+4. Conserva el orden de scripts de `index.html`: `search.js` va después de
+   `join.js` y `map-layers.js` después del engine.
 5. Abre `index.html` directamente o sirve la carpeta con
    `python -m http.server`; comprueba también búsqueda y detalle mediante
    `file://`.

@@ -76,9 +76,186 @@
     }
   }
 
+  function validateZoomRange(descriptor, path, errors) {
+    for (const key of ["minZoom", "maxZoom"]) {
+      if (descriptor[key] != null && (
+        !Number.isFinite(descriptor[key]) || descriptor[key] < 0
+      )) errors.push(`${path}.${key} debe ser un número no negativo`);
+    }
+    if (descriptor.minZoom != null && descriptor.maxZoom != null
+      && descriptor.minZoom > descriptor.maxZoom) {
+      errors.push(`${path}.minZoom no puede superar maxZoom`);
+    }
+  }
+
+  function validateMap(map, errors) {
+    if (map == null) return;
+    if (!isObject(map)) {
+      errors.push("map debe ser un objeto");
+      return;
+    }
+    const panes = isObject(map.panes) ? Object.values(map.panes) : [];
+    if (map.panes != null && !isObject(map.panes)) errors.push("map.panes debe ser un objeto");
+    panes.forEach((pane, index) => {
+      if (!isObject(pane)) errors.push(`map.panes[${index}] debe ser un objeto`);
+      else {
+        if (!isNonEmptyString(pane.name)) errors.push(`map.panes[${index}].name es obligatorio`);
+        if (pane.zIndex != null && !Number.isFinite(pane.zIndex)) {
+          errors.push(`map.panes[${index}].zIndex debe ser finito`);
+        }
+        if (pane.pointerEvents != null && !isNonEmptyString(pane.pointerEvents)) {
+          errors.push(`map.panes[${index}].pointerEvents debe ser texto`);
+        }
+      }
+    });
+    for (const name of duplicateValues(panes, "name")) {
+      errors.push(`map.panes contiene el nombre duplicado "${name}"`);
+    }
+
+    if (map.selection != null) {
+      if (!isObject(map.selection)) errors.push("map.selection debe ser un objeto");
+      else {
+        if (map.selection.enabled != null && typeof map.selection.enabled !== "boolean") {
+          errors.push("map.selection.enabled debe ser booleano");
+        }
+        if (map.selection.pane != null && !isNonEmptyString(map.selection.pane)) {
+          errors.push("map.selection.pane debe ser texto");
+        }
+        if (map.selection.style != null && !isObject(map.selection.style)) {
+          errors.push("map.selection.style debe ser un objeto");
+        } else {
+          for (const key of ["weight", "opacity", "fillOpacity"]) {
+            if (map.selection.style?.[key] != null
+              && !Number.isFinite(map.selection.style[key])) {
+              errors.push(`map.selection.style.${key} debe ser finito`);
+            }
+          }
+        }
+      }
+    }
+
+    if (map.overlays != null && !Array.isArray(map.overlays)) {
+      errors.push("map.overlays debe ser un array");
+    }
+    const overlays = Array.isArray(map.overlays) ? map.overlays : [];
+    const controls = new Map();
+    overlays.forEach((overlay, index) => {
+      const path = `map.overlays[${index}]`;
+      if (!isObject(overlay)) {
+        errors.push(`${path} debe ser un objeto`);
+        return;
+      }
+      if (!isNonEmptyString(overlay.id)) errors.push(`${path}.id es obligatorio`);
+      if (!isNonEmptyString(overlay.label)) errors.push(`${path}.label es obligatorio`);
+      if (!["tile", "markers"].includes(overlay.type)) errors.push(`${path}.type no está soportado`);
+      for (const key of ["enabled", "interactive"]) {
+        if (overlay[key] != null && typeof overlay[key] !== "boolean") {
+          errors.push(`${path}.${key} debe ser booleano`);
+        }
+      }
+      if (overlay.pane != null && !isNonEmptyString(overlay.pane)) {
+        errors.push(`${path}.pane debe ser texto`);
+      }
+      validateZoomRange(overlay, path, errors);
+      if (overlay.type === "tile") {
+        if (!isNonEmptyString(overlay.url)) errors.push(`${path}.url es obligatoria`);
+        else if (/^(?:javascript|data):/i.test(overlay.url)) errors.push(`${path}.url no es segura`);
+        if (overlay.attribution != null && typeof overlay.attribution !== "string") {
+          errors.push(`${path}.attribution debe ser texto`);
+        }
+        if (overlay.options != null && !isObject(overlay.options)) {
+          errors.push(`${path}.options debe ser un objeto`);
+        }
+      }
+      if (overlay.type === "markers") {
+        if (!Array.isArray(overlay.items) && typeof overlay.items !== "function") {
+          errors.push(`${path}.items debe ser un array o una función`);
+        }
+        if (overlay.style != null && !isObject(overlay.style)) {
+          errors.push(`${path}.style debe ser un objeto`);
+        }
+        for (const key of ["pointFor", "labelFor", "formatter", "className"]) {
+          if (overlay[key] != null && key !== "className" && typeof overlay[key] !== "function") {
+            errors.push(`${path}.${key} debe ser una función`);
+          }
+          if (key === "className" && overlay[key] != null
+            && typeof overlay[key] !== "string" && typeof overlay[key] !== "function") {
+            errors.push(`${path}.className debe ser texto o función`);
+          }
+        }
+      }
+      if (overlay.control != null) {
+        if (!isObject(overlay.control)
+          || !isNonEmptyString(overlay.control.id)
+          || !isNonEmptyString(overlay.control.label)) {
+          errors.push(`${path}.control debe definir id y label`);
+        } else {
+          const prior = controls.get(overlay.control.id);
+          const signature = `${overlay.control.label}|${overlay.enabled === true}`;
+          if (prior && prior !== signature) errors.push(`${path}.control no coincide con su grupo`);
+          controls.set(overlay.control.id, signature);
+        }
+      }
+    });
+    for (const id of duplicateValues(overlays, "id")) {
+      errors.push(`map.overlays contiene el id duplicado "${id}"`);
+    }
+
+    if (map.labels != null) {
+      const labels = map.labels;
+      if (!isObject(labels)) errors.push("map.labels debe ser un objeto");
+      else {
+        validateZoomRange(labels, "map.labels", errors);
+        if (labels.enabled != null && typeof labels.enabled !== "boolean") {
+          errors.push("map.labels.enabled debe ser booleano");
+        }
+        if (labels.interactive != null && typeof labels.interactive !== "boolean") {
+          errors.push("map.labels.interactive debe ser booleano");
+        }
+        for (const key of ["label", "pane", "iconClassName"]) {
+          if (labels[key] != null && !isNonEmptyString(labels[key])) {
+            errors.push(`map.labels.${key} debe ser texto`);
+          }
+        }
+        if (labels.className != null && typeof labels.className !== "string"
+          && typeof labels.className !== "function") {
+          errors.push("map.labels.className debe ser texto o función");
+        }
+        if (labels.boundsPadding != null && (
+          !Number.isFinite(labels.boundsPadding) || labels.boundsPadding < 0
+        )) errors.push("map.labels.boundsPadding debe ser no negativo");
+        if (labels.items != null && !Array.isArray(labels.items) && typeof labels.items !== "function") {
+          errors.push("map.labels.items debe ser un array o una función");
+        }
+        for (const key of ["pointFor", "labelFor", "formatter"]) {
+          if (labels[key] != null && typeof labels[key] !== "function") {
+            errors.push(`map.labels.${key} debe ser una función`);
+          }
+        }
+      }
+    }
+    if (map.layerControl != null) {
+      const control = map.layerControl;
+      if (!isObject(control)) errors.push("map.layerControl debe ser un objeto");
+      else {
+        for (const key of ["enabled", "collapsed"]) {
+          if (control[key] != null && typeof control[key] !== "boolean") {
+            errors.push(`map.layerControl.${key} debe ser booleano`);
+          }
+        }
+        if (control.position != null
+          && !["topleft", "topright", "bottomleft", "bottomright"].includes(control.position)) {
+          errors.push("map.layerControl.position no está soportada");
+        }
+      }
+    }
+  }
+
   function validateConfig(config) {
     const errors = [];
     if (!isObject(config)) return { valid: false, errors: ["config debe ser un objeto"] };
+
+    validateMap(config.map, errors);
 
     if (config.ui != null && !isObject(config.ui)) errors.push("ui debe ser un objeto");
     if (config.ui?.locale != null && !isNonEmptyString(config.ui.locale)) {

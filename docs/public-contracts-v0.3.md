@@ -96,6 +96,32 @@ añade `{ items, pointFor, labelFor?, style? }`; los callbacks pertenecen a la
 configuración JavaScript, no a datos externos. Reconstruir el mapa debe retirar
 capas y listeners anteriores. Los ids duplicados son un error de configuración.
 
+`items` puede ser un array o una función síncrona que recibe
+`{ L, map, config, zones, overlay }`. `pointFor` devuelve `[lat, lng]`,
+`{ lat, lng }` o `{ lat, lon }`; si se omite, Tesela lee esas propiedades del
+item. Coordenadas vacías, booleanas, no finitas o fuera del mundo se descartan.
+`labelFor` y `formatter` devuelven texto, nunca HTML externo.
+
+Varios overlays pueden compartir un toggle mediante:
+
+```js
+control: { id: "context", label: "Reference layers" }
+```
+
+Los miembros de un grupo deben declarar el mismo label y estado inicial.
+`map.labels` ofrece una capa de nombres independiente con `minZoom`, `maxZoom`,
+`boundsPadding`, items y callbacks equivalentes. Si no define `pointFor`, usa el
+punto representativo de la geometría de la zona.
+
+`map.selection` dibuja un único perímetro no interactivo. Seleccionar otra zona
+lo sustituye y refrescar estilos no lo elimina. `map.panes` fija nombre, z-index y
+eventos de puntero; `map.layerControl` configura el control Leaflet.
+
+El componente `Tesela.ui.createMapLayerManager` expone `rebuild`,
+`refreshZoneStyles`, `refreshLabels`, `setSelection`, `focusZone` y `destroy`.
+Reconstruir o destruir retira listeners, controles y capas anteriores; `destroy`
+es idempotente.
+
 ## Providers asíncronos
 
 ```js
