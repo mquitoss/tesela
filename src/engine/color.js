@@ -1,5 +1,5 @@
 /* =====================================================================
-   Self Service Map · engine/color — rampa coroplética configurable
+   Tesela · engine/color — rampa coroplética configurable
    =====================================================================
    Rampa de color definida por la config (`config.color.ramp`: lista de paradas
    [r,g,b]). `colorForValue` mapea un valor a un color RELATIVO a una extensión
@@ -9,7 +9,8 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  const g = root.SSM || (root.SSM = {});
+  const g = root.Tesela || root.SSM || {};
+  root.Tesela = root.SSM = g;
   g.engine = Object.assign(g.engine || {}, api);
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";

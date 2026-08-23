@@ -1,5 +1,5 @@
 /* =====================================================================
-   Self Service Map · app.config.js — CONFIGURACIÓN DECLARATIVA
+   Tesela · app.config.js — CONFIGURACIÓN DECLARATIVA
    =====================================================================
    ESTE es el archivo que un agente edita para personalizar el mapa desde un
    prompt del usuario. Define TODO lo específico del dominio: marca, mapa,
@@ -15,11 +15,30 @@
   const config = {
     // --- Marca / textos de la cabecera --------------------------------------
     branding: {
-      title: "Self Service Map",
+      title: "Tesela",
       subtitle: "Densidad de población · Barcelona (ejemplo)",
       accent: "#5EEAD4",
-      dataNamespace: "SSM_DATA", // global donde vive el bundle (window.SSM_DATA)
+      version: "0.2.0",
+      dataNamespace: "TESELA_DATA",
     },
+
+    // --- Textos y controles del shell (localizables por proyecto) -----------
+    ui: {
+      locale: "es-ES",
+      slider: { min: -1, max: 1, step: 0.1 },
+      labels: {
+        noData: "sin dato",
+        index: "Índice",
+        zones: "zonas",
+        withData: "con dato",
+        weightedIndex: "Índice ponderado (relativo)",
+        low: "bajo",
+        high: "alto",
+      },
+    },
+
+    // Los ids son configurables para incrustar varias apps o usar otro shell.
+    mounts: { rail: "ssm-rail", map: "ssm-map", detail: "ssm-detail" },
 
     // --- Mapa base ----------------------------------------------------------
     map: {
@@ -43,6 +62,7 @@
       nameFallback: true,
       nameProperty: "NOM",
       nameField: "nom",
+      nameNormalization: { articles: ["els", "les", "el", "la", "l'"] },
     },
 
     // --- Niveles geográficos (opcional, multi-nivel) ------------------------
@@ -118,9 +138,16 @@
       ],
       // simulator: null,  // un dominio con simulador define aquí su descriptor
     },
+
+    // Slots opcionales: sidebar.afterStatus, sidebar.afterControls,
+    // detail.beforeFields y detail.afterFields. Cada handler devuelve un nodo
+    // DOM, texto o una lista de ambos. La lógica de dominio puede vivir también
+    // en `Tesela.adapters.slots`.
+    extensions: { slots: {} },
   };
 
-  // Exponer en navegador (window.SSM_CONFIG) y en CommonJS (tests/tooling).
+  // API nueva y alias compatible durante toda la serie 0.x.
+  root.TESELA_CONFIG = config;
   root.SSM_CONFIG = config;
   if (typeof module !== "undefined" && module.exports) module.exports = config;
 })(typeof self !== "undefined" ? self : this);

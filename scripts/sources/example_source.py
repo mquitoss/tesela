@@ -1,6 +1,6 @@
 """Adaptador de ejemplo: densidad de población por barrio de Barcelona.
 
-Dataset NEUTRO incluido de fábrica para que el framework arranque mostrando algo
+Dataset NEUTRO incluido de fábrica para que Tesela arranque mostrando algo
 real. Dos fuentes públicas:
 
 - Geometría: ``martgnz/bcn-geodata`` (73 barris, CC-BY). Propiedad de join: ``BARRI``.
@@ -34,8 +34,8 @@ KEEP_PROPS = ("BARRI", "NOM", "AREA")
 
 
 def _fetch(url: str, timeout: int = 60) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": "self-service-map/1.0"})
-    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310 (URL fija)
+    req = urllib.request.Request(url, headers={"User-Agent": "tesela-map/0.2"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.read()
 
 

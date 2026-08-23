@@ -1,5 +1,5 @@
 /* =====================================================================
-   Self Service Map · engine/geo — helpers geométricos PUROS
+   Tesela · engine/geo — helpers geométricos PUROS
    =====================================================================
    Lectura de claves de un feature GeoJSON (clave de join + nombre), centroide
    representativo, distancia haversine, conteo por radio y point-in-polygon. Todo
@@ -12,7 +12,8 @@
 (function (root, factory) {
   const api = factory();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  const g = root.SSM || (root.SSM = {});
+  const g = root.Tesela || root.SSM || {};
+  root.Tesela = root.SSM = g;
   g.engine = Object.assign(g.engine || {}, api);
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";

@@ -1,7 +1,7 @@
 [project]
-name = "self-service-map"
-version = "0.1.0"
-description = "Pipeline de datos del framework Self Service Map (Source → bundle.js)."
+name = "tesela-map"
+version = "0.2.0"
+description = "Pipeline de datos de Tesela (Source → bundle.js)."
 requires-python = ">=3.10"
 dependencies = []
 

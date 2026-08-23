@@ -1,5 +1,5 @@
 /* =====================================================================
-   Self Service Map · adapters/domain — HOOKS de dominio (opcionales)
+   Tesela · adapters/domain — HOOKS de dominio (opcionales)
    =====================================================================
    Puntos de extensión para lo que la config declarativa no expresa. El agente
    los implementa cuando el prompt del usuario lo requiere; por defecto son
@@ -15,12 +15,13 @@
        Ejemplo (invest-map): compra-para-alquilar → {precio, rendiment_net, ...}.
 
    Mantén estas funciones PURAS (sin DOM/red) para que sean testables. Patrón
-   UMD como el engine: CommonJS para Vitest + `SSM.adapters` en el navegador.
+   UMD como el engine: CommonJS para Vitest + `Tesela.adapters` en el navegador.
    ===================================================================== */
 (function (root, factory) {
   const api = factory();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  const g = root.SSM || (root.SSM = {});
+  const g = root.Tesela || root.SSM || {};
+  root.Tesela = root.SSM = g;
   g.adapters = Object.assign(g.adapters || {}, api);
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
@@ -48,5 +49,7 @@
     return null;
   }
 
-  return { derive, simulate };
+  const slots = {};
+
+  return { derive, simulate, slots };
 });

@@ -1,14 +1,14 @@
 {
-  "name": "self-service-map",
-  "version": "0.1.0",
+  "name": "tesela-map",
+  "version": "0.2.0",
   "private": true,
-  "description": "Framework base zero-build para crear mapas que muestran datos (coropleta + scoring), personalizable por config + adaptadores.",
+  "description": "Motor y shell zero-build para crear aplicaciones cartográficas configurables.",
   "type": "commonjs",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "vitest": "^2.1.9"
+    "vitest": "^3.2.4"
   }
 }

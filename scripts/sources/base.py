@@ -1,13 +1,17 @@
 """Contrato del adaptador de fuente de datos (Source).
 
 Cada fuente vive en ``scripts/sources/<nombre>.py`` y expone una clase ``Source``
-que implementa este protocolo. El pipeline (``build_data.py``) es agnóstico: solo
+que implementa este protocolo. El pipeline de Tesela es agnóstico: solo
 pide geometría e indicadores y los emite como bundle. Toda la lógica específica de
 un dominio (de dónde vienen los datos, cómo se limpian, qué métricas se derivan)
 vive en el Source, no en el pipeline.
 
 Un agente que personaliza el framework desde un prompt clona ``example_source.py``
 y reimplementa ``geometry()`` e ``indicators()`` para su dominio.
+
+Cuando Tesela se consume como submódulo, el Source puede declarar un constructor
+``__init__(project_root: Path)``; el pipeline le entrega la raíz absoluta del
+proyecto host.
 """
 
 from __future__ import annotations
@@ -35,3 +39,6 @@ class Source(Protocol):
     def indicators(self) -> list[dict]:
         """Lista de registros de indicador ``{clave, nom, <metricas>}``."""
         ...
+
+    # Una implementación puede añadir `metadata() -> dict`; es opcional y el
+    # pipeline lo incorpora a `bundle.meta` cuando está presente.

@@ -7,16 +7,11 @@ contrato, y las funciones puras del pipeline se prueban directamente.
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 
+import build_data
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-
-import build_data  # noqa: E402
-from sources.example_source import compute_density  # noqa: E402
-
+from sources.example_source import compute_density
 
 # --- helpers puros del pipeline --------------------------------------------
 
@@ -66,16 +61,83 @@ def test_build_meta_counts_zones_and_data():
     assert meta["zonas"] == 2
     assert meta["indicadores"] == 2
     assert meta["con_dato"] == 1  # el segundo es todo huecos
+    assert build_data.build_meta("canonical", geo, inds, {"source": "override"})["source"] == "canonical"
 
 
-def test_emit_bundle_js_writes_namespaced_global(tmp_path):
+def test_emit_bundle_js_writes_namespaced_global_and_compatibility_alias(tmp_path):
     bundle = {"geo": {"type": "FeatureCollection", "features": []}, "indicators": [], "meta": {}}
     out = tmp_path / "bundle.js"
     build_data.emit_bundle_js(bundle, out, namespace="SSM_DATA")
     text = out.read_text(encoding="utf-8")
     assert text.startswith("window.SSM_DATA = ")
-    payload = json.loads(text[len("window.SSM_DATA = ") : -2])  # quita ` = ` y `;\n`
+    first_line = text.splitlines()[0]
+    payload = json.loads(first_line[len("window.SSM_DATA = ") : -1])
     assert "geo" in payload and "indicators" in payload
+    assert "window.TESELA_DATA = window.SSM_DATA;" in text
+
+
+def test_emit_bundle_js_uses_tesela_by_default_and_rejects_unsafe_namespace(tmp_path):
+    bundle = {"geo": {}, "indicators": []}
+    out = tmp_path / "bundle.js"
+    build_data.emit_bundle_js(bundle, out)
+    text = out.read_text(encoding="utf-8")
+    assert text.startswith("window.TESELA_DATA = ")
+    assert "window.SSM_DATA = window.TESELA_DATA;" in text
+    with pytest.raises(ValueError, match="Namespace JavaScript inválido"):
+        build_data.emit_bundle_js(bundle, out, namespace="bad;alert(1)")
+    with pytest.raises(ValueError, match="Out of range float"):
+        build_data.emit_bundle_js({"value": float("nan")}, out)
+
+
+def test_validate_source_data_rejects_duplicate_indicator_keys():
+    geo = {
+        "type": "FeatureCollection",
+        "features": [{"properties": {"ID": "1"}, "geometry": None}],
+    }
+    with pytest.raises(ValueError, match="duplicadas"):
+        build_data.validate_source_data(geo, [{"id": "1"}, {"id": "1"}], "ID", "id")
+
+
+def test_external_source_builds_into_host_project(tmp_path):
+    host = tmp_path / "host"
+    host.mkdir()
+    source_path = host / "municipal_source.py"
+    source_path.write_text(
+        """
+class Source:
+    def __init__(self, project_root):
+        self.project_root = project_root
+
+    def geometry(self):
+        return {
+            "type": "FeatureCollection",
+            "features": [{"type": "Feature", "properties": {"ID": "001"}, "geometry": None}],
+        }
+
+    def indicators(self):
+        return [{"id": "001", "value": 42}]
+
+    def metadata(self):
+        return {"project_root": str(self.project_root)}
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    bundle = build_data.construir(
+        "external",
+        Path("data"),
+        join_property="ID",
+        key_field="id",
+        source_path=Path("municipal_source.py"),
+        project_root=host,
+        output=Path("public/map-data.js"),
+    )
+
+    output = host / "public/map-data.js"
+    assert output.exists()
+    assert output.read_text(encoding="utf-8").startswith("window.TESELA_DATA = ")
+    assert bundle["meta"]["source"] == "municipal_source"
+    assert bundle["meta"]["project_root"] == str(host)
 
 
 # --- adaptador de ejemplo: densidad ----------------------------------------
@@ -113,12 +175,16 @@ class FakeSource:
     def indicators(self) -> list[dict]:
         return [{"codi": 1, "nom": "el Raval", "poblacio": 50000, "area_km2": 1.0, "densitat": 50000.0}]
 
+    def metadata(self) -> dict:
+        return {"license": "CC0", "reference_period": "2025"}
+
 
 def test_construir_emits_valid_bundle(tmp_path, monkeypatch):
-    monkeypatch.setattr(build_data, "load_source", lambda name: FakeSource())
+    monkeypatch.setattr(build_data, "load_source", lambda name, **kwargs: FakeSource())
     bundle = build_data.construir("fake", tmp_path)
     assert (tmp_path / "bundle.js").exists()
     assert bundle["meta"]["zonas"] == 1
     assert bundle["meta"]["con_dato"] == 1
+    assert bundle["meta"]["license"] == "CC0"
     # La densidad llega a las properties de la feature (tooltip rico).
     assert bundle["geo"]["features"][0]["properties"]["densitat"] == 50000.0

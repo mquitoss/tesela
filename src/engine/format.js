@@ -1,16 +1,17 @@
 /* =====================================================================
-   Self Service Map · engine/format — formateo de valores para la UI
+   Tesela · engine/format — formateo de valores para la UI
    =====================================================================
-   Funciones PURAS de presentación: number/percent/plain con coma decimal y
-   marcador de "sin dato" para los HUECOS de dominio (null/NaN). No tocan el DOM.
+   Funciones PURAS de presentación: number/percent/plain con locale configurable
+   y marcador explícito para los HUECOS de dominio (null/NaN). No tocan el DOM.
 
    Patrón UMD ligero: se exporta en CommonJS (Vitest) y se cuelga del namespace
-   global `SSM.engine` en el navegador (sin build, funciona bajo file://).
+   global `Tesela.engine` en el navegador (con alias `SSM.engine` durante 0.x).
    ===================================================================== */
 (function (root, factory) {
   const api = factory();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  const g = root.SSM || (root.SSM = {});
+  const g = root.Tesela || root.SSM || {};
+  root.Tesela = root.SSM = g;
   g.engine = Object.assign(g.engine || {}, api);
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
@@ -18,6 +19,18 @@
   /** ¿Es `value` un número finito utilizable (no null/NaN/∞)? */
   function isNum(value) {
     return value != null && Number.isFinite(Number(value));
+  }
+
+  function localize(value, decimals, options) {
+    try {
+      return Number(value).toLocaleString(options.locale || "es-ES", {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+        useGrouping: options.useGrouping === true,
+      });
+    } catch {
+      return Number(value).toFixed(decimals);
+    }
   }
 
   /**
@@ -33,7 +46,7 @@
     const sinDato = o.sinDato != null ? o.sinDato : "sin dato";
     if (!isNum(value)) return sinDato;
     const decimals = o.decimals != null ? o.decimals : 0;
-    const text = Number(value).toFixed(decimals).replace(".", ",");
+    const text = localize(value, decimals, o);
     return o.unit ? `${text} ${o.unit}` : text;
   }
 
@@ -49,7 +62,7 @@
     const sinDato = o.sinDato != null ? o.sinDato : "sin dato";
     if (!isNum(value)) return sinDato;
     const decimals = o.decimals != null ? o.decimals : 1;
-    return `${Number(value).toFixed(decimals).replace(".", ",")}%`;
+    return `${localize(value, decimals, o)}%`;
   }
 
   /**

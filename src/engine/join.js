@@ -1,5 +1,5 @@
 /* =====================================================================
-   Self Service Map · engine/join — join PURO indicadores ↔ geometría
+   Tesela · engine/join — join PURO indicadores ↔ geometría
    =====================================================================
    Generaliza el join de quirat/invest-map: une cada feature GeoJSON con su
    registro de indicador por una CLAVE CANÓNICA configurable (p. ej. BARRI o
@@ -11,10 +11,13 @@
    ===================================================================== */
 (function (root, factory) {
   const api = factory(
-    typeof require === "function" ? require("./geo.js") : (root.SSM && root.SSM.engine),
+    typeof require === "function"
+      ? require("./geo.js")
+      : ((root.Tesela || root.SSM) && (root.Tesela || root.SSM).engine),
   );
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  const g = root.SSM || (root.SSM = {});
+  const g = root.Tesela || root.SSM || {};
+  root.Tesela = root.SSM = g;
   g.engine = Object.assign(g.engine || {}, api);
 })(typeof self !== "undefined" ? self : this, function (geo) {
   "use strict";
@@ -23,21 +26,36 @@
   const REGEX_ESPACIOS = /\s+/g;
   // Artículos iniciales a descartar (longest-first para consumir els/les antes
   // que el/la). `\s*` admite el apóstrofo de `l'` sin espacio.
-  const REGEX_ARTICLE = /^(?:els|les|el|la|l')\s*/;
+  const LEGACY_ARTICLES = ["els", "les", "el", "la", "l'"];
+
+  function escapeRegex(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
 
   /**
    * Normaliza un nombre para el join por nombre (fallback): minúsculas, sin
-   * acentos, sin artículo inicial y con espacios colapsados. Espejo de
-   * `build_data.py::normalize_name`. Nunca lanza.
+   * acentos y con espacios colapsados. Los artículos son configurables; por
+   * compatibilidad se usa la lista catalana histórica si no se indica otra.
    * @param {unknown} value
+   * @param {{removeArticles?:boolean, articles?:string[]}} [options]
    * @returns {string}
    */
-  function normalizeName(value) {
+  function normalizeName(value, options) {
+    const opts = options || {};
     const sinAcentos = (value == null ? "" : String(value))
       .normalize("NFKD")
       .replace(REGEX_COMBINING, "");
     const colapsado = sinAcentos.toLowerCase().trim().replace(REGEX_ESPACIOS, " ");
-    return colapsado.replace(REGEX_ARTICLE, "").trim();
+    if (opts.removeArticles === false) return colapsado;
+    const articles = Array.isArray(opts.articles) ? opts.articles : LEGACY_ARTICLES;
+    if (!articles.length) return colapsado;
+    const pattern = articles
+      .map((article) => normalizeName(article, { removeArticles: false }))
+      .filter(Boolean)
+      .sort((left, right) => right.length - left.length)
+      .map(escapeRegex)
+      .join("|");
+    return pattern ? colapsado.replace(new RegExp(`^(?:${pattern})\\s*`), "").trim() : colapsado;
   }
 
   // Clave de un indicador según el tipo de join (number → Number, si no String).
@@ -60,17 +78,25 @@
   function indexIndicators(indicators, cfg) {
     const byKey = new Map();
     const byName = new Map();
+    const duplicateKeys = new Set();
+    const duplicateNames = new Set();
     const keyField = cfg.keyField;
     const nameField = cfg.nameField || "nom";
     for (const entry of indicators || []) {
       if (!entry) continue;
       const k = indicatorKey(entry[keyField], cfg.type);
-      if (k != null) byKey.set(k, entry);
+      if (k != null) {
+        if (byKey.has(k)) duplicateKeys.add(k);
+        else byKey.set(k, entry);
+      }
       if (cfg.nameFallback && entry[nameField] != null) {
-        byName.set(normalizeName(entry[nameField]), entry);
+        const normalized = normalizeName(entry[nameField], cfg.nameNormalization);
+        if (!normalized) continue;
+        if (byName.has(normalized)) duplicateNames.add(normalized);
+        else byName.set(normalized, entry);
       }
     }
-    return { byKey, byName };
+    return { byKey, byName, duplicateKeys: [...duplicateKeys], duplicateNames: [...duplicateNames] };
   }
 
   /**
@@ -95,6 +121,7 @@
       type: cfg.type,
       nameField: cfg.nameField,
       nameFallback: cfg.nameFallback,
+      nameNormalization: cfg.nameNormalization,
     });
     let matched = 0;
     let usedNameFallback = 0;
@@ -104,7 +131,7 @@
       let entry = key != null ? index.byKey.get(key) : undefined;
       let viaName = false;
       if (!entry && cfg.nameFallback) {
-        entry = index.byName.get(normalizeName(name));
+        entry = index.byName.get(normalizeName(name, cfg.nameNormalization));
         viaName = Boolean(entry);
       }
       const ind = entry || null;
@@ -119,6 +146,8 @@
       matched,
       unmatched: zones.length - matched,
       usedNameFallback,
+      duplicateIndicatorKeys: index.duplicateKeys,
+      duplicateIndicatorNames: index.duplicateNames,
     };
   }
 

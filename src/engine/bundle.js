@@ -1,28 +1,29 @@
 /* =====================================================================
-   Self Service Map · engine/bundle — validación, fuentes y multi-nivel
+   Tesela · engine/bundle — validación, fuentes y multi-nivel
    =====================================================================
-   Adopción del bundle offline (`window.SSM_DATA = {geo, indicators, meta, levels?}`):
+   Adopción del bundle offline (`window.TESELA_DATA = {geo, indicators, meta, levels?}`):
    validación de forma, escalera de fuentes (embedded → url → upload) y soporte
    multi-nivel opcional (`availableLevels`/`getLevel`). Puro: sin DOM/red.
    ===================================================================== */
 (function (root, factory) {
   const api = factory();
   if (typeof module !== "undefined" && module.exports) module.exports = api;
-  const g = root.SSM || (root.SSM = {});
+  const g = root.Tesela || root.SSM || {};
+  root.Tesela = root.SSM = g;
   g.engine = Object.assign(g.engine || {}, api);
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
   /**
-   * ¿Es `bundle` una forma válida? Exige geo (FeatureCollection con features no
-   * vacío) e indicators (array no vacío). `meta` es opcional. Nunca lanza.
+   * ¿Es `bundle` una forma válida? Acepta un nivel superior válido o al menos un
+   * nivel válido dentro de `levels`. `meta` es opcional. Nunca lanza.
    * @param {unknown} bundle
    * @returns {boolean}
    */
-  function isValidBundle(bundle) {
-    if (!bundle || typeof bundle !== "object") return false;
-    const geo = bundle.geo;
-    const indicators = bundle.indicators;
+  function isValidLevel(level) {
+    if (!level || typeof level !== "object") return false;
+    const geo = level.geo;
+    const indicators = level.indicators;
     const geoOk =
       !!geo &&
       typeof geo === "object" &&
@@ -31,6 +32,15 @@
       geo.features.length > 0;
     const indOk = Array.isArray(indicators) && indicators.length > 0;
     return geoOk && indOk;
+  }
+
+  function isValidBundle(bundle) {
+    if (!bundle || typeof bundle !== "object") return false;
+    if (isValidLevel(bundle)) return true;
+    const levels = bundle.levels;
+    return Boolean(
+      levels && typeof levels === "object" && Object.values(levels).some(isValidLevel),
+    );
   }
 
   function pickBundle(bundle) {
@@ -118,6 +128,7 @@
   }
 
   return {
+    isValidLevel,
     isValidBundle,
     selectDataSource,
     availableLevels,

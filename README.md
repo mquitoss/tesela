@@ -1,72 +1,178 @@
-# Self Service Map
+# Tesela
 
-Framework base **zero-build** para crear mapas que muestran datos: coropleta interactiva +
-scoring ponderado + panel de detalle, todo dirigido por una **configuración declarativa** y
-**adaptadores de datos**. Pensado para que un agente lo personalice desde el prompt de un usuario
-en vez de empezar de cero (ver **[AGENTS.md](./AGENTS.md)**).
+Tesela es un motor y shell **zero-build** para crear aplicaciones cartográficas
+configurables: coropletas, scoring ponderado, paneles de detalle y extensiones de
+dominio. Combina geometrías, datos y capas para convertir información territorial
+fragmentada en mapas comprensibles.
 
-Destila la arquitectura común de dos proyectos previos (`quirat-barcelona`, `invest-map`): misma
-plantilla de mapa + datos, parametrizada.
+La configuración, los adaptadores y el Source describen el dominio. El motor
+permanece agnóstico y conserva `null` como ausencia real, sin convertir huecos en
+cero.
 
-## Cómo funciona
+## Arquitectura
 
+```text
+app.config.js ──────────────┐
+                           ▼
+data/bundle.js ─────► Tesela.engine ─────► src/app.js ─────► Leaflet
+      ▲                    ▲                    ▲
+      │                    │                    │ slots UI
+scripts/build_data.py      └──── src/adapters/domain.js
+      ▲
+scripts/sources/<source>.py
 ```
-                 app.config.js  (qué mapa, qué datos, qué colores, qué factores)
-                       │
-data/bundle.js  ───────┼───────►  src/engine/*  (motor agnóstico)  ───►  index.html (Leaflet)
- (window.SSM_DATA)     │              ▲
-                       │              │ hooks opcionales
- scripts/build_data.py ┘        src/adapters/domain.js
-   + scripts/sources/<x>.py
-```
 
-- **Frontend**: vanilla JS + Leaflet 1.9.4 (CDN). Sin transpilación: se abre con doble clic
-  (`file://`). El motor (`src/engine/`) usa un patrón UMD ligero — una sola fuente de verdad por
-  función, cargada por `<script src>` en el navegador y por `require()` en los tests.
-- **Pipeline**: `scripts/build_data.py` orquesta un *Source* (`scripts/sources/`) y emite
-  `data/bundle.js`. El motor y el pipeline son agnósticos; lo específico vive en config + Source.
+- **Engine**: join, scoring, color, geometría, formato, bundles, validación y
+  extensiones; funciones puras con CommonJS y UMD.
+- **Shell**: Leaflet y DOM dirigidos por `TESELA_CONFIG`.
+- **Pipeline**: un `Source` produce geometría e indicadores y genera
+  `TESELA_DATA`.
+- **Adapters**: métricas derivadas, simulación y slots específicos del dominio.
+
+Tesela puede consumirse directamente o fijarse como Git submodule. En ese modo,
+el host mantiene fuera del submódulo su config, Source, datos y adapter. Consulta
+[`docs/submodule.md`](docs/submodule.md).
 
 ## Arranque rápido
 
 ```bash
-# 1. Abrir el mapa de ejemplo (densidad de población por barrio de Barcelona)
-open index.html            # o doble clic; el bundle de ejemplo ya viene generado
-
-# 2. Tests del motor (frontend)
-npm install && npm test
-
-# 3. Tests del pipeline (backend)
-python -m venv .venv && .venv/bin/pip install pytest
+npm install
+npm test
 .venv/bin/python -m pytest
-
-# 4. Regenerar los datos de ejemplo (requiere red: martgnz + Open Data BCN)
-python scripts/build_data.py --source example_source
+open index.html
 ```
+
+Para regenerar el ejemplo de densidad de población por barrio de Barcelona:
+
+```bash
+.venv/bin/python scripts/build_data.py --source example_source
+```
+
+## Configuración declarativa
+
+El punto principal de personalización es `app.config.js`:
+
+- `branding`: marca y namespace de datos;
+- `ui`: locale, textos y rango de sliders;
+- `mounts`: ids de los contenedores del shell;
+- `map`: centro, zoom y teselas;
+- `join`: claves canónicas de geometría e indicadores;
+- `indicators`: presentación de métricas;
+- `color`: métrica y rampa de la coropleta;
+- `scoring`: factores, pesos y presets;
+- `detail`: campos de la ficha;
+- `extensions.slots`: extensiones visuales opcionales.
+
+Tesela valida la configuración antes de inicializar Leaflet. Los errores muestran
+la ruta del campo inválido en lugar de fallar silenciosamente.
+
+La normalización del fallback por nombre también es configurable mediante
+`join.nameNormalization`: se pueden indicar artículos propios del idioma o usar
+`removeArticles: false`.
+
+## Slots de UI
+
+La primera API de extensión incluye:
+
+```text
+sidebar.afterStatus
+sidebar.afterControls
+detail.beforeFields
+```
+
+Cada handler recibe `{ config, state, zone?, score? }` y puede devolver texto, un
+nodo DOM o una lista de ambos. Los errores de un slot quedan aislados y no
+bloquean el mapa.
+
+```js
+extensions: {
+  slots: {
+    "sidebar.afterStatus": ({ state }) => {
+      const note = document.createElement("p");
+      note.textContent = `${state.matched} zonas enlazadas`;
+      return note;
+    },
+  },
+}
+```
+
+La misma API está disponible en `Tesela.adapters.slots` para mantener fuera de la
+configuración la lógica compleja de dominio.
+
+## Contrato de datos
+
+Un Source implementa:
+
+```python
+class Source:
+    def geometry(self) -> dict:
+        ...  # FeatureCollection GeoJSON
+
+    def indicators(self) -> list[dict]:
+        ...  # registros con la clave canónica
+
+    def metadata(self) -> dict:  # opcional
+        ...
+```
+
+El pipeline rechaza claves ausentes o duplicadas, indicadores sin geometría y
+namespaces JavaScript inseguros. El bundle nuevo publica:
+
+```js
+window.TESELA_DATA = { geo, indicators, meta };
+window.SSM_DATA = window.TESELA_DATA; // compatibilidad 0.x
+```
+
+## Compatibilidad con Self Service Map
+
+La versión `0.2.0` introduce la marca y globals de Tesela sin romper proyectos
+anteriores:
+
+| API recomendada | Alias temporal |
+|---|---|
+| `window.Tesela` | `window.SSM` |
+| `window.TESELA_CONFIG` | `window.SSM_CONFIG` |
+| `window.TESELA_DATA` | `window.SSM_DATA` |
+
+Ambos namespaces apuntan al mismo objeto. Los ids y clases CSS `ssm-*` se
+conservan durante la serie `0.x`. Consulta
+[`docs/migrating-from-ssm.md`](docs/migrating-from-ssm.md).
 
 ## Estructura
 
-| Ruta | Qué es |
+| Ruta | Función |
 |---|---|
-| `index.html` | Shell zero-build (carga config, datos, engine y app por `<script src>`) |
-| `app.config.js` | **Configuración declarativa** del mapa (el punto de personalización principal) |
-| `src/engine/*.js` | Motor agnóstico: `join`, `scoring`, `color`, `geo`, `bundle`, `format` |
-| `src/adapters/domain.js` | Hooks opcionales `derive` / `simulate` |
-| `src/app.js` | Cableado Leaflet/DOM dirigido por la config |
-| `scripts/build_data.py` | Pipeline base (Source → `bundle.js`) |
-| `scripts/sources/` | Adaptadores de fuente (`example_source.py` + contrato `base.py`) |
-| `data/bundle.js` | Datos generados (`window.SSM_DATA = {geo, indicators, meta}`) |
-| `tests/` | Vitest (engine) + pytest (pipeline) |
-| `AGENTS.md` | Guía de personalización para agentes |
+| `src/engine/namespace.js` | Runtime y aliases compatibles |
+| `src/engine/config.js` | Validación declarativa |
+| `src/engine/extensions.js` | Slots aislados |
+| `src/ui/tesela.css` | Estilos públicos reutilizables |
+| `src/engine/*.js` | Motor agnóstico |
+| `src/app.js` | Shell Leaflet/DOM |
+| `src/adapters/domain.js` | Hooks y slots de dominio |
+| `scripts/build_data.py` | Source → bundle validado |
+| `tests/` | Vitest y pytest |
+| `docs/tesela-upgrade-plan.md` | Plan evolutivo hasta Tesela 1.0 |
+| `tesela.assets.json` | Orden y versión de assets públicos |
+| `templates/submodule-host/` | Proyecto host mínimo para copiar |
 
-## Dataset de ejemplo
+## Estado de APIs experimentales
 
-Densidad de población por barrio de Barcelona (73 barris). Fuentes públicas:
-geometría [`martgnz/bcn-geodata`](https://github.com/martgnz/bcn-geodata) (CC-BY) y padró
-municipal de [Open Data BCN](https://opendata-ajuntament.barcelona.cat/). Es un dataset neutro:
-demuestra coropleta + scoring sin sesgo temático.
+`levels`, `bbox` y `simulate` continúan siendo experimentales: existen helpers o
+descriptores, pero el shell todavía no ofrece selector multinivel, aplicación de
+bbox ni interfaz de simulación. No deben presentarse como capacidades completas.
 
-## Crear tu propio mapa
+Los temas pueden sobrescribir las variables CSS prefijadas `--tesela-bg`,
+`--tesela-panel`, `--tesela-ink`, `--tesela-muted`, `--tesela-accent` y
+`--tesela-line` sin reutilizar nombres genéricos del proyecto host.
 
-Lee **[AGENTS.md](./AGENTS.md)**. En resumen: edita `app.config.js`, clona
-`scripts/sources/example_source.py` para tu fuente, (opcional) implementa `derive`/`simulate`,
-ejecuta el build y verifica con los tests. No toques `src/engine/*`.
+## Desarrollo
+
+```bash
+npm test
+.venv/bin/python -m pytest
+.venv/bin/ruff check .
+.venv/bin/mypy scripts tests
+```
+
+La hoja de ruta completa está en
+[`docs/tesela-upgrade-plan.md`](docs/tesela-upgrade-plan.md).

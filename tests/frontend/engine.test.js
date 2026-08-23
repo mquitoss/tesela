@@ -1,11 +1,227 @@
 import { describe, it, expect } from "vitest";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import vm from "node:vm";
 
+const namespace = require("../../src/engine/namespace.js");
+const configEngine = require("../../src/engine/config.js");
+const extensions = require("../../src/engine/extensions.js");
 const join = require("../../src/engine/join.js");
 const scoring = require("../../src/engine/scoring.js");
 const color = require("../../src/engine/color.js");
 const geo = require("../../src/engine/geo.js");
 const bundle = require("../../src/engine/bundle.js");
 const format = require("../../src/engine/format.js");
+const appConfig = require("../../app.config.js");
+const packageConfig = require("../../package.json");
+const assetManifest = require("../../tesela.assets.json");
+
+function browserContext() {
+  const context = {};
+  context.self = context;
+  vm.createContext(context);
+  return context;
+}
+
+function runBrowserScript(context, path) {
+  vm.runInContext(readFileSync(resolve(process.cwd(), path), "utf8"), context);
+}
+
+function fakeBrowser() {
+  const elements = new Map();
+  const styles = new Map();
+  const makeElement = (tag = "div") => ({
+    tagName: tag.toUpperCase(),
+    nodeType: 1,
+    children: [],
+    className: "",
+    classList: { values: new Set(), add(value) { this.values.add(value); } },
+    setAttribute() {},
+    addEventListener() {},
+    appendChild(child) { this.children.push(child); return child; },
+    replaceChildren(...children) { this.children = children; },
+  });
+  for (const id of ["ssm-rail", "ssm-map", "ssm-detail"]) elements.set(id, makeElement());
+  const document = {
+    readyState: "complete",
+    documentElement: { style: { setProperty: (name, value) => styles.set(name, value) } },
+    createElement: makeElement,
+    createTextNode: (text) => ({ nodeType: 3, textContent: text }),
+    getElementById: (id) => elements.get(id) || null,
+    addEventListener() {},
+  };
+  const bounds = { isValid: () => true };
+  const map = { setView() { return this; }, fitBounds() {} };
+  const L = {
+    map: () => map,
+    tileLayer: () => ({ addTo: () => ({}) }),
+    geoJSON: (geojson, options) => {
+      for (const feature of geojson.features || []) {
+        options.style(feature);
+        options.onEachFeature(feature, {
+          bindTooltip() {},
+          on() {},
+          setStyle() {},
+        });
+      }
+      return {
+        addTo() { return this; },
+        remove() {},
+        getBounds: () => bounds,
+      };
+    },
+  };
+  const context = browserContext();
+  Object.assign(context, { window: context, document, L, console });
+  return { context, elements, styles };
+}
+
+describe("namespace Tesela", () => {
+  it("comparte identidad con el alias SSM y publica el engine", () => {
+    const context = browserContext();
+    runBrowserScript(context, "src/engine/namespace.js");
+    runBrowserScript(context, "src/engine/color.js");
+    expect(context.Tesela).toBe(context.SSM);
+    expect(typeof context.Tesela.engine.colorForValue).toBe("function");
+  });
+
+  it("expone la misma configuración bajo ambos nombres", () => {
+    const context = browserContext();
+    runBrowserScript(context, "app.config.js");
+    expect(context.TESELA_CONFIG).toBe(context.SSM_CONFIG);
+    expect(context.TESELA_CONFIG.branding.title).toBe("Tesela");
+  });
+
+  it("conserva un namespace SSM previo", () => {
+    const legacy = { adapters: { legacy: true } };
+    const root = { SSM: legacy };
+    expect(namespace.ensureNamespace(root)).toBe(legacy);
+    expect(root.Tesela).toBe(root.SSM);
+  });
+
+  it("prioriza config y datos Tesela con fallback legacy", () => {
+    const root = {
+      TESELA_CONFIG: { id: "new" },
+      SSM_CONFIG: { id: "old" },
+      TESELA_DATA: { id: "new-data" },
+      SSM_DATA: { id: "old-data" },
+    };
+    expect(namespace.resolveConfig(root).id).toBe("new");
+    expect(namespace.resolveEmbeddedData(root, {}).data.id).toBe("new-data");
+    expect(namespace.resolveEmbeddedData(
+      { CUSTOM_DATA: { id: "custom" }, TESELA_DATA: root.TESELA_DATA },
+      { branding: { dataNamespace: "CUSTOM_DATA" } },
+    ).data.id).toBe("custom");
+    expect(namespace.resolveEmbeddedData({ SSM_DATA: root.SSM_DATA }, {}).data.id).toBe("old-data");
+  });
+});
+
+describe("shell zero-build", () => {
+  it("arranca con globals Tesela y el bundle generado", () => {
+    const { context, elements, styles } = fakeBrowser();
+    for (const path of [
+      "src/engine/namespace.js", "app.config.js", "data/bundle.js",
+      "src/engine/format.js", "src/engine/geo.js", "src/engine/join.js",
+      "src/engine/scoring.js", "src/engine/color.js", "src/engine/bundle.js",
+      "src/engine/config.js", "src/engine/extensions.js", "src/adapters/domain.js",
+      "src/app.js",
+    ]) runBrowserScript(context, path);
+
+    expect(context.Tesela).toBe(context.SSM);
+    expect(context.TESELA_DATA).toBe(context.SSM_DATA);
+    expect(context.Tesela.app.getState().zones).toBe(73);
+    expect(elements.get("ssm-rail").children.length).toBeGreaterThan(0);
+    expect(styles.get("--tesela-accent")).toBe("#5EEAD4");
+  });
+
+  it("abre un bundle legacy que solo expone SSM_DATA", () => {
+    const { context } = fakeBrowser();
+    runBrowserScript(context, "src/engine/namespace.js");
+    runBrowserScript(context, "app.config.js");
+    const legacyFeature = square(1, "Zona legacy");
+    legacyFeature.properties.BARRI = 1;
+    context.SSM_DATA = {
+      geo: { type: "FeatureCollection", features: [legacyFeature] },
+      indicators: [{ codi: 1, nom: "Zona legacy", poblacio: 10, area_km2: 1, densitat: 10 }],
+    };
+    for (const path of [
+      "src/engine/format.js", "src/engine/geo.js", "src/engine/join.js",
+      "src/engine/scoring.js", "src/engine/color.js", "src/engine/bundle.js",
+      "src/engine/config.js", "src/engine/extensions.js", "src/adapters/domain.js",
+      "src/app.js",
+    ]) runBrowserScript(context, path);
+    expect(context.Tesela.app.getState().zones).toBe(1);
+    expect(context.Tesela.app.getState().matched).toBe(1);
+  });
+});
+
+describe("distribución como submódulo", () => {
+  it("publica un manifiesto versionado cuyos assets existen", () => {
+    expect(assetManifest.version).toBe(packageConfig.version);
+    for (const path of [
+      ...assetManifest.styles,
+      ...assetManifest.scripts.runtime,
+      ...assetManifest.scripts.engine,
+      assetManifest.scripts.defaultAdapter,
+      assetManifest.scripts.entrypoint,
+    ]) {
+      expect(existsSync(resolve(process.cwd(), path)), path).toBe(true);
+    }
+  });
+
+  it("mantiene estilos fuera del HTML y ofrece una plantilla de host", () => {
+    const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
+    expect(html).toContain('href="src/ui/tesela.css"');
+    expect(html).not.toContain("<style>");
+    expect(existsSync(resolve(process.cwd(), "templates/submodule-host/index.html"))).toBe(true);
+    expect(existsSync(resolve(process.cwd(), "templates/submodule-host/scripts/source.py"))).toBe(true);
+  });
+
+  it("incluye una configuración host válida con mounts propios", () => {
+    const context = browserContext();
+    runBrowserScript(context, "templates/submodule-host/app.config.js");
+    expect(configEngine.validateConfig(context.TESELA_CONFIG).valid).toBe(true);
+    expect(context.TESELA_CONFIG.mounts.map).toBe("map");
+  });
+});
+
+describe("configuración", () => {
+  it("valida la configuración de ejemplo", () => {
+    expect(configEngine.validateConfig(appConfig)).toEqual({ valid: true, errors: [] });
+    expect(appConfig.branding.title).toBe("Tesela");
+    expect(appConfig.branding.version).toBe(packageConfig.version);
+  });
+
+  it("detecta duplicados y referencias de preset inválidas", () => {
+    const invalid = {
+      join: { property: "ID", keyField: "id" },
+      indicators: [{ key: "value" }, { key: "value" }],
+      scoring: {
+        factors: [{ key: "quality", indicator: "value" }],
+        presets: [{ id: "default", weights: { missing: 1 } }],
+        defaultPreset: "unknown",
+      },
+      color: { ramp: [[0, 0, 0], [999, 0, 0]] },
+    };
+    const result = configEngine.validateConfig(invalid);
+    expect(result.valid).toBe(false);
+    expect(result.errors.join(" ")).toMatch(/duplicada/);
+    expect(result.errors.join(" ")).toMatch(/no referencia un factor/);
+    expect(result.errors.join(" ")).toMatch(/no existe/);
+    expect(result.errors.join(" ")).toMatch(/canales 0\.\.255/);
+  });
+});
+
+describe("slots de extensión", () => {
+  it("combina handlers, conserva orden y aísla errores", () => {
+    const result = extensions.runSlot([
+      { "detail.afterFields": [(context) => context.zone, () => { throw new Error("boom"); }] },
+      { "detail.afterFields": () => "adapter" },
+    ], "detail.afterFields", { zone: "config" });
+    expect(result.outputs).toEqual(["config", "adapter"]);
+    expect(result.errors).toHaveLength(1);
+  });
+});
 
 const square = (id, nom) => ({
   type: "Feature",
@@ -30,6 +246,10 @@ describe("join.normalizeName", () => {
     expect(join.normalizeName("la  Barceloneta")).toBe("barceloneta");
     expect(join.normalizeName("Gràcia")).toBe("gracia");
     expect(join.normalizeName(null)).toBe("");
+  });
+  it("permite configurar los artículos del idioma", () => {
+    expect(join.normalizeName("the Valley", { articles: ["the"] })).toBe("valley");
+    expect(join.normalizeName("la Barceloneta", { removeArticles: false })).toBe("la barceloneta");
   });
 });
 
@@ -64,6 +284,13 @@ describe("join.joinByKey", () => {
     const inds = [{ nom: "el Raval", v: 99 }];
     const r = join.joinByKey(geojson, inds, { ...cfg, nameFallback: false });
     expect(r.matched).toBe(0);
+  });
+
+  it("informa claves duplicadas sin sobrescribir el primer indicador", () => {
+    const inds = [{ codi: 1, v: 10 }, { codi: 1, v: 99 }];
+    const r = join.joinByKey(geojson, inds, cfg);
+    expect(r.duplicateIndicatorKeys).toEqual([1]);
+    expect(r.zones[0].ind.v).toBe(10);
   });
 });
 
@@ -202,6 +429,8 @@ describe("bundle", () => {
     const ml = { levels: { seccio: { geo: valid.geo, indicators: [] }, barri: { geo: valid.geo, indicators: [{ codi: 1 }] } } };
     expect(bundle.availableLevels(ml, ["barri", "seccio"])).toEqual(["barri", "seccio"]);
     expect(bundle.getLevel(ml, "barri").indicators.length).toBe(1);
+    expect(bundle.isValidBundle(ml)).toBe(true);
+    expect(bundle.selectDataSource({ embedded: ml }).source).toBe("embedded");
   });
 });
 
@@ -217,5 +446,10 @@ describe("format", () => {
     expect(format.formatValue(3, { format: "number" })).toBe("3");
     expect(format.formatValue("hola", { format: "plain" })).toBe("hola");
     expect(format.formatValue(null, { format: "percent" })).toBe("sin dato");
+  });
+  it("permite locale y marcador de hueco configurables", () => {
+    expect(format.formatNumber(1234.5, { decimals: 1, locale: "en-US" })).toBe("1234.5");
+    expect(format.formatNumber(1234.5, { decimals: 1, locale: "locale-inexistente" })).toBe("1234.5");
+    expect(format.formatValue(null, { sinDato: "n/a" })).toBe("n/a");
   });
 });
