@@ -97,3 +97,10 @@ configuración de dominio dentro de `vendor/tesela`.
 
 Consulta `docs/migrating-from-ssm.md` antes de migrar un proyecto antiguo.
 `levels`, `bbox` y `simulate` no deben tratarse aún como APIs completas.
+
+## Releases
+
+No edites una sola versión de forma aislada ni crees tags manualmente. Añade los
+cambios a `[Unreleased]` y utiliza `npm run release -- <versión>`. El comando
+sincroniza todos los ficheros, valida el repositorio y crea rama y tag dedicados.
+Consulta `docs/releases.md`.

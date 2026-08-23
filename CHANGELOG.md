@@ -15,6 +15,8 @@
 - CSS público extraído y manifiesto ordenado de assets.
 - Pipeline compatible con Sources externos y salidas en un proyecto host.
 - Plantilla y guía para consumir Tesela como Git submodule.
+- Release CLI con sincronización de versiones, validaciones, rama dedicada y tag.
+- Workflow que publica automáticamente el GitHub Release al recibir un tag.
 
 ### Cambiado
 

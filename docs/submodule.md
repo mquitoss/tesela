@@ -90,6 +90,10 @@ El commit del submódulo forma parte del proyecto host. No uses seguimiento
 automático de una rama en producción: revisa changelog, migración y tests antes de
 actualizar el puntero.
 
+Cada versión oficial ofrece tanto `release/vX.Y.Z` como el tag anotado `vX.Y.Z`.
+Para producción se recomienda fijar el tag; la rama dedicada permite inspeccionar
+la versión o configurar `git submodule update --remote` de forma explícita.
+
 ## Plantilla
 
 `templates/submodule-host/` contiene una estructura mínima para copiar a un nuevo

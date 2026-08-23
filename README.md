@@ -176,3 +176,24 @@ npm test
 
 La hoja de ruta completa está en
 [`docs/tesela-upgrade-plan.md`](docs/tesela-upgrade-plan.md).
+
+## Versiones y releases
+
+La versión se sincroniza entre JavaScript, Python, configuración, manifiesto de
+assets y changelog. Cada publicación crea una rama y un tag dedicados que apuntan
+al mismo commit:
+
+```text
+release/v0.3.0
+v0.3.0
+```
+
+```bash
+npm run version:check
+npm run release -- 0.3.0 --dry-run
+npm run release -- 0.3.0 --push
+```
+
+El tag es la referencia inmutable recomendada para submódulos. Consulta
+[`docs/releases.md`](docs/releases.md) para el flujo completo y la recuperación
+ante errores.

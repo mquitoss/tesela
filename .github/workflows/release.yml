@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      - run: python -m pip install pytest ruff mypy
+      - name: Verify release branch and synchronized version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          git ls-remote --exit-code --heads origin "release/${GITHUB_REF_NAME}"
+          VERSION="$VERSION" node -e "require('./scripts/release').assertVersionSynchronized(process.cwd(), process.env.VERSION, true)"
+      - run: npm test
+      - run: npm audit --audit-level=high
+      - run: python -m pytest
+      - run: ruff check .
+      - run: mypy scripts tests
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "Tesela $GITHUB_REF_NAME"

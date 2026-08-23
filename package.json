@@ -5,8 +5,10 @@
   "description": "Motor y shell zero-build para crear aplicaciones cartográficas configurables.",
   "type": "commonjs",
   "scripts": {
+    "release": "node scripts/release.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "version:check": "node -e \"const r=require('./scripts/release');const p=require('./package');r.assertVersionSynchronized(process.cwd(),p.version)\""
   },
   "devDependencies": {
     "vitest": "^3.2.4"

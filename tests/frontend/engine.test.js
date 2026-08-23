@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import {
+  existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join as joinPath, resolve } from "node:path";
 import vm from "node:vm";
 
 const namespace = require("../../src/engine/namespace.js");
@@ -15,6 +18,8 @@ const format = require("../../src/engine/format.js");
 const appConfig = require("../../app.config.js");
 const packageConfig = require("../../package.json");
 const assetManifest = require("../../tesela.assets.json");
+const releaseEngine = require("../../scripts/release.js");
+const projectRoot = process.cwd();
 
 function browserContext() {
   const context = {};
@@ -190,6 +195,10 @@ describe("configuración", () => {
     expect(configEngine.validateConfig(appConfig)).toEqual({ valid: true, errors: [] });
     expect(appConfig.branding.title).toBe("Tesela");
     expect(appConfig.branding.version).toBe(packageConfig.version);
+    expect(readFileSync(resolve(projectRoot, "pyproject.toml"), "utf8")).toContain(
+      `version = "${packageConfig.version}"`,
+    );
+    expect(require("../../package-lock.json").version).toBe(packageConfig.version);
   });
 
   it("detecta duplicados y referencias de preset inválidas", () => {
@@ -209,6 +218,82 @@ describe("configuración", () => {
     expect(result.errors.join(" ")).toMatch(/no referencia un factor/);
     expect(result.errors.join(" ")).toMatch(/no existe/);
     expect(result.errors.join(" ")).toMatch(/canales 0\.\.255/);
+  });
+});
+
+describe("sistema de releases", () => {
+  it("valida y ordena versiones semánticas estables", () => {
+    expect(releaseEngine.compareVersions("0.3.0", "0.2.9")).toBe(1);
+    expect(releaseEngine.compareVersions("1.0.0", "1.0.0")).toBe(0);
+    expect(() => releaseEngine.parseVersion("v1.0.0")).toThrow(/inválida/);
+    expect(() => releaseEngine.parseVersion("1.0")).toThrow(/inválida/);
+  });
+
+  it("convierte Unreleased y permite publicar la versión bootstrap", () => {
+    expect(releaseEngine.updateChangelog(
+      "# Changelog\n\n## [Unreleased]\n\n### Añadido\n- Cambio\n",
+      "0.3.0",
+      "2026-08-23",
+    )).toContain("## [0.3.0] - 2026-08-23\n\n### Añadido");
+    expect(releaseEngine.updateChangelog(
+      "# Changelog\n\n## 0.2.0 — sin publicar\n\n- Inicial\n",
+      "0.2.0",
+      "2026-08-23",
+    )).toContain("## [Unreleased]\n\n## [0.2.0] - 2026-08-23");
+    expect(() => releaseEngine.updateChangelog(
+      "# Changelog\n\n## [Unreleased]\n",
+      "0.3.0",
+      "2026-08-23",
+    )).toThrow(/vacía/);
+  });
+
+  it("sincroniza todos los ficheros versionados", () => {
+    const root = mkdtempSync(joinPath(tmpdir(), "tesela-release-"));
+    try {
+      writeFileSync(joinPath(root, "package.json"), '{"name":"tesela","version":"0.2.0"}\n');
+      writeFileSync(joinPath(root, "package-lock.json"), '{"version":"0.2.0","packages":{"":{"version":"0.2.0"}}}\n');
+      writeFileSync(joinPath(root, "tesela.assets.json"), '{"version":"0.2.0"}\n');
+      writeFileSync(joinPath(root, "pyproject.toml"), '[project]\nversion = "0.2.0"\n\n[tool]\npython_version = "3.10"\n');
+      writeFileSync(joinPath(root, "app.config.js"), 'const x={branding:{\n  version: "0.2.0",\n}};\n');
+      writeFileSync(joinPath(root, "CHANGELOG.md"), '# Changelog\n\n## [Unreleased]\n\n- Cambio\n');
+
+      releaseEngine.synchronizeVersion(root, "0.3.0", "2026-08-23");
+
+      expect(JSON.parse(readFileSync(joinPath(root, "package.json"), "utf8")).version).toBe("0.3.0");
+      expect(JSON.parse(readFileSync(joinPath(root, "package-lock.json"), "utf8")).packages[""].version).toBe("0.3.0");
+      expect(JSON.parse(readFileSync(joinPath(root, "tesela.assets.json"), "utf8")).version).toBe("0.3.0");
+      expect(readFileSync(joinPath(root, "pyproject.toml"), "utf8")).toContain('version = "0.3.0"');
+      expect(readFileSync(joinPath(root, "pyproject.toml"), "utf8")).toContain('python_version = "3.10"');
+      expect(readFileSync(joinPath(root, "app.config.js"), "utf8")).toContain('version: "0.3.0"');
+      expect(releaseEngine.assertVersionSynchronized(root, "0.3.0", true)).toBe(true);
+      writeFileSync(joinPath(root, "tesela.assets.json"), '{"version":"9.9.9"}\n');
+      expect(() => releaseEngine.assertVersionSynchronized(root, "0.3.0", true)).toThrow(
+        /tesela\.assets\.json/,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("planifica nombres de rama y tag sin modificar Git", () => {
+    const root = mkdtempSync(joinPath(tmpdir(), "tesela-release-plan-"));
+    try {
+      writeFileSync(joinPath(root, "package.json"), '{"version":"0.2.0"}\n');
+      writeFileSync(joinPath(root, "CHANGELOG.md"), '# Changelog\n\n## [Unreleased]\n');
+      expect(releaseEngine.release({ root, version: "0.3.0", dryRun: true })).toMatchObject({
+        branch: "release/v0.3.0",
+        tag: "v0.3.0",
+        dryRun: true,
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("parsea push y remoto explícitos", () => {
+    expect(releaseEngine.parseArguments(["0.3.0", "--push", "--remote", "upstream"])).toMatchObject({
+      version: "0.3.0", push: true, remote: "upstream",
+    });
   });
 });
 
