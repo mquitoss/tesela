@@ -32,7 +32,10 @@
     preset: null,
     extent: { min: 0, max: 0 },
     selected: null,
+    query: "",
     layer: null,
+    layersByKey: new Map(),
+    refreshSearch: null,
     map: null,
   };
 
@@ -114,6 +117,7 @@
     });
     state.scoresByKey = new Map(results.map((result) => [String(result.key), result]));
     state.extent = computeColorExtent();
+    if (typeof state.refreshSearch === "function") state.refreshSearch();
   }
 
   function scoreFor(zone) {
@@ -124,6 +128,8 @@
     return E.formatValue(value, {
       locale: ui.locale || "es-ES",
       sinDato: label("noData", "sin dato"),
+      booleanLabels: ui.booleanLabels,
+      durationLabels: ui.durationLabels,
       ...field,
     });
   }
@@ -134,6 +140,7 @@
       matched: state.zones.filter((zone) => zone.ind).length,
       weights: Object.freeze({ ...state.weights }),
       preset: state.preset,
+      query: state.query,
       selected: state.selected
         ? Object.freeze({ key: state.selected.key, name: state.selected.name })
         : null,
@@ -209,6 +216,7 @@
 
   function render() {
     if (state.layer) state.layer.remove();
+    state.layersByKey.clear();
     const features = state.zones.map((z) => z.feature);
     const geo = { type: "FeatureCollection", features };
     const byFeature = new Map();
@@ -218,6 +226,7 @@
       onEachFeature: (f, layer) => {
         const zone = byFeature.get(f);
         if (!zone) return;
+        state.layersByKey.set(String(zone.key), layer);
         layer.bindTooltip(tooltipFor(zone), { sticky: true });
         layer.on("mouseover", () =>
           layer.setStyle({
@@ -232,7 +241,7 @@
   }
 
   // ---- panel de detalle ------------------------------------------------------
-  function selectZone(zone) {
+  function selectZone(zone, focusDetail) {
     state.selected = zone;
     const panel = mount("detail");
     if (!panel) return;
@@ -250,19 +259,123 @@
       r && r.status === E.SCORE_STATUS.AVAILABLE
         ? el("div", { class: "ssm-score" }, [`${label("index", "Índice")}: ${r.score}/100`])
         : null;
+    const title = el("h2", { tabindex: "-1" }, [zone.name || label("zoneFallback", "Zona")]);
     panel.replaceChildren();
-    panel.appendChild(el("h2", null, [zone.name || label("zoneFallback", "Zona")]));
+    panel.appendChild(title);
     if (scoreLine) panel.appendChild(scoreLine);
     renderSlot(panel, "detail.beforeFields", { zone, score: r });
     rows.forEach((row) => panel.appendChild(row));
     renderSlot(panel, "detail.afterFields", { zone, score: r });
     panel.classList.add("open");
+    panel.setAttribute("aria-hidden", "false");
+    if (focusDetail && typeof title.focus === "function") title.focus();
+  }
+
+  function focusZone(zone) {
+    const layer = state.layersByKey.get(String(zone.key));
+    const bounds = layer && typeof layer.getBounds === "function" ? layer.getBounds() : null;
+    if (bounds && typeof bounds.isValid === "function" && bounds.isValid()) {
+      const search = ui.search || {};
+      state.map.fitBounds(bounds, { maxZoom: search.maxZoom || 12, padding: [20, 20] });
+    }
+    selectZone(zone, true);
+  }
+
+  function buildSearch() {
+    const searchConfig = ui.search || {};
+    if (searchConfig.enabled === false || typeof E.searchZones !== "function") return null;
+    const resultsId = `${mounts.rail}-search-results`;
+    const inputId = `${mounts.rail}-search-input`;
+    const feedback = el("div", {
+      class: "tesela-search-feedback",
+      "aria-live": "polite",
+    }, []);
+    const resultsList = el("div", {
+      id: resultsId,
+      class: "tesela-search-results",
+    }, []);
+    let currentResults = [];
+    const input = el("input", {
+      id: inputId,
+      type: "search",
+      value: state.query,
+      placeholder: label("searchPlaceholder", "Buscar zona…"),
+      autocomplete: "off",
+      "aria-controls": resultsId,
+      oninput: (event) => {
+        state.query = event.target.value;
+        updateResults();
+      },
+      onkeydown: (event) => {
+        if (event.key !== "Escape") return;
+        state.query = "";
+        input.value = "";
+        updateResults();
+      },
+    });
+    input.value = state.query;
+
+    function updateResults() {
+      resultsList.replaceChildren();
+      const query = state.query.trim();
+      if (!query) {
+        currentResults = [];
+        feedback.textContent = "";
+        return;
+      }
+      currentResults = E.searchZones(state.zones, query, {
+        nameFor: (zone) => zone.name,
+        scoreFor: (zone) => {
+          const result = scoreFor(zone);
+          return result?.status === E.SCORE_STATUS.AVAILABLE ? result.score : null;
+        },
+        keyFor: (zone) => zone.key,
+        locale: ui.locale,
+        normalization: CONFIG.join?.nameNormalization,
+      });
+      const countLabel = label("searchResultCount", "{count} coincidencias")
+        .replace("{count}", String(currentResults.length));
+      feedback.textContent = countLabel;
+      if (!currentResults.length) {
+        resultsList.appendChild(el("p", { class: "tesela-search-empty" }, [
+          label("searchNoResults", "No se han encontrado zonas."),
+        ]));
+        return;
+      }
+      for (const zone of currentResults.slice(0, searchConfig.limit || 8)) {
+        resultsList.appendChild(el("button", {
+          type: "button",
+          class: "tesela-search-result",
+          onclick: () => focusZone(zone),
+        }, [zone.name || label("zoneFallback", "Zona")]));
+      }
+    }
+
+    const form = el("form", {
+      class: "tesela-search",
+      role: "search",
+      onsubmit: (event) => {
+        event.preventDefault();
+        if (currentResults[0]) focusZone(currentResults[0]);
+      },
+    }, [
+      el("label", { class: "tesela-visually-hidden", for: inputId }, [
+        label("searchLabel", "Buscar zona"),
+      ]),
+      input,
+      feedback,
+      resultsList,
+    ]);
+    state.refreshSearch = updateResults;
+    updateResults();
+    return form;
   }
 
   // ---- consola: presets + sliders + leyenda ----------------------------------
   function buildConsole() {
     const rail = mount("rail");
     if (!rail) return;
+    state.refreshSearch = null;
     rail.replaceChildren();
 
     // Marca
@@ -286,6 +399,9 @@
       ]),
     );
     renderSlot(rail, "sidebar.afterStatus");
+
+    const search = buildSearch();
+    if (search) rail.appendChild(search);
 
     // Presets
     const presets = (CONFIG.scoring && CONFIG.scoring.presets) || [];

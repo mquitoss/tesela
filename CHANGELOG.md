@@ -7,6 +7,13 @@
 - Contratos públicos objetivo y fixtures neutrales de paridad para Tesela 0.3.
 - Scoring con cobertura ponderada, estados explícitos y diagnóstico de factores
   ausentes.
+- Búsqueda estable y configurable de zonas, integrada en el shell sin backend.
+- Formatos `boolean` y `duration` con etiquetas localizables.
+
+### Corregido
+
+- La normalización de artículos ya no elimina prefijos que solo coinciden con el
+  inicio de una palabra.
 
 ## [0.2.0] - 2026-08-23
 

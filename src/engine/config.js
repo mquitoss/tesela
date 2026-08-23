@@ -12,6 +12,7 @@
 
   const isObject = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
   const isNonEmptyString = (value) => typeof value === "string" && value.trim().length > 0;
+  const FIELD_FORMATS = new Set(["plain", "number", "percent", "boolean", "duration"]);
 
   function duplicateValues(items, key) {
     const seen = new Set();
@@ -37,9 +38,83 @@
     });
   }
 
+  function validateFields(fields, path, errors) {
+    fields.forEach((field, index) => {
+      const fieldPath = `${path}[${index}]`;
+      if (!isObject(field)) {
+        errors.push(`${fieldPath} debe ser un objeto`);
+        return;
+      }
+      if (!isNonEmptyString(field.key)) errors.push(`${fieldPath}.key es obligatorio`);
+      if (!isNonEmptyString(field.label)) errors.push(`${fieldPath}.label es obligatorio`);
+      if (field.format != null && !FIELD_FORMATS.has(field.format)) {
+        errors.push(`${fieldPath}.format no está soportado`);
+      }
+      if (field.decimals != null && (
+        !Number.isInteger(Number(field.decimals))
+        || Number(field.decimals) < 0
+        || Number(field.decimals) > 20
+      )) {
+        errors.push(`${fieldPath}.decimals debe ser un entero entre 0 y 20`);
+      }
+      for (const key of ["unit", "sinDato", "section", "help"]) {
+        if (field[key] != null && typeof field[key] !== "string") {
+          errors.push(`${fieldPath}.${key} debe ser texto`);
+        }
+      }
+      for (const labelsKey of ["booleanLabels", "durationLabels"]) {
+        const labels = field[labelsKey];
+        if (labels == null) continue;
+        const keys = labelsKey === "booleanLabels" ? ["true", "false"] : ["hour", "minute"];
+        if (!isObject(labels) || keys.some((key) => !isNonEmptyString(labels[key]))) {
+          errors.push(`${fieldPath}.${labelsKey} debe definir textos ${keys.join(" y ")}`);
+        }
+      }
+    });
+    for (const key of duplicateValues(fields, "key")) {
+      errors.push(`${path} contiene la clave duplicada "${key}"`);
+    }
+  }
+
   function validateConfig(config) {
     const errors = [];
     if (!isObject(config)) return { valid: false, errors: ["config debe ser un objeto"] };
+
+    if (config.ui != null && !isObject(config.ui)) errors.push("ui debe ser un objeto");
+    if (config.ui?.locale != null && !isNonEmptyString(config.ui.locale)) {
+      errors.push("ui.locale debe ser un texto no vacío");
+    }
+    if (config.ui?.labels != null) {
+      if (!isObject(config.ui.labels)) errors.push("ui.labels debe ser un objeto");
+      else {
+        for (const [key, value] of Object.entries(config.ui.labels)) {
+          if (typeof value !== "string") errors.push(`ui.labels.${key} debe ser texto`);
+        }
+      }
+    }
+    for (const labelsKey of ["booleanLabels", "durationLabels"]) {
+      const labels = config.ui?.[labelsKey];
+      if (labels == null) continue;
+      const keys = labelsKey === "booleanLabels" ? ["true", "false"] : ["hour", "minute"];
+      if (!isObject(labels) || keys.some((key) => !isNonEmptyString(labels[key]))) {
+        errors.push(`ui.${labelsKey} debe definir textos ${keys.join(" y ")}`);
+      }
+    }
+    const search = config.ui?.search;
+    if (search != null) {
+      if (!isObject(search)) errors.push("ui.search debe ser un objeto");
+      else {
+        if (search.enabled != null && typeof search.enabled !== "boolean") {
+          errors.push("ui.search.enabled debe ser booleano");
+        }
+        if (search.limit != null && (!Number.isInteger(search.limit) || search.limit <= 0)) {
+          errors.push("ui.search.limit debe ser un entero positivo");
+        }
+        if (search.maxZoom != null && (!Number.isFinite(search.maxZoom) || search.maxZoom <= 0)) {
+          errors.push("ui.search.maxZoom debe ser positivo");
+        }
+      }
+    }
 
     if (!isObject(config.join)) errors.push("join debe ser un objeto");
     else {
@@ -88,12 +163,7 @@
     if (config.indicators != null && !Array.isArray(config.indicators)) {
       errors.push("indicators debe ser un array");
     }
-    indicators.forEach((indicator, index) => {
-      if (!isNonEmptyString(indicator?.key)) errors.push(`indicators[${index}].key es obligatorio`);
-    });
-    for (const key of duplicateValues(indicators, "key")) {
-      errors.push(`indicators contiene la clave duplicada "${key}"`);
-    }
+    validateFields(indicators, "indicators", errors);
 
     if (config.color != null && !isObject(config.color)) errors.push("color debe ser un objeto");
     else if (config.color?.ramp != null) validateRamp(config.color.ramp, errors);
@@ -160,9 +230,7 @@
 
     const detailFields = config.detail?.fields;
     if (detailFields != null && !Array.isArray(detailFields)) errors.push("detail.fields debe ser un array");
-    for (const key of duplicateValues(Array.isArray(detailFields) ? detailFields : [], "key")) {
-      errors.push(`detail.fields contiene la clave duplicada "${key}"`);
-    }
+    validateFields(Array.isArray(detailFields) ? detailFields : [], "detail.fields", errors);
 
     const slots = config.extensions?.slots;
     if (slots != null && !isObject(slots)) errors.push("extensions.slots debe ser un objeto");

@@ -22,8 +22,8 @@ scripts/build_data.py      └──── src/adapters/domain.js
 scripts/sources/<source>.py
 ```
 
-- **Engine**: join, scoring, color, geometría, formato, bundles, validación y
-  extensiones; funciones puras con CommonJS y UMD.
+- **Engine**: join, búsqueda, scoring, color, geometría, formato, bundles,
+  validación y extensiones; funciones puras con CommonJS y UMD.
 - **Shell**: Leaflet y DOM dirigidos por `TESELA_CONFIG`.
 - **Pipeline**: un `Source` produce geometría e indicadores y genera
   `TESELA_DATA`.
@@ -74,6 +74,11 @@ la ruta del campo inválido en lugar de fallar silenciosamente.
 La normalización del fallback por nombre también es configurable mediante
 `join.nameNormalization`: se pueden indicar artículos propios del idioma o usar
 `removeArticles: false`.
+
+`ui.search` activa un buscador de zonas con límite y zoom configurables. Los
+campos aceptan los formatos `plain`, `number`, `percent`, `boolean` y `duration`;
+las etiquetas booleanas, unidades temporales y textos de búsqueda pertenecen al
+host y pueden localizarse sin modificar el motor.
 
 ## Slots de UI
 

@@ -25,12 +25,8 @@
   const REGEX_COMBINING = /[̀-ͯ]/g;
   const REGEX_ESPACIOS = /\s+/g;
   // Artículos iniciales a descartar (longest-first para consumir els/les antes
-  // que el/la). `\s*` admite el apóstrofo de `l'` sin espacio.
+  // que el/la). Los terminados en apóstrofo pueden ir unidos al nombre.
   const LEGACY_ARTICLES = ["els", "les", "el", "la", "l'"];
-
-  function escapeRegex(value) {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  }
 
   /**
    * Normaliza un nombre para el join por nombre (fallback): minúsculas, sin
@@ -49,13 +45,20 @@
     if (opts.removeArticles === false) return colapsado;
     const articles = Array.isArray(opts.articles) ? opts.articles : LEGACY_ARTICLES;
     if (!articles.length) return colapsado;
-    const pattern = articles
+    const normalizedArticles = articles
       .map((article) => normalizeName(article, { removeArticles: false }))
       .filter(Boolean)
-      .sort((left, right) => right.length - left.length)
-      .map(escapeRegex)
-      .join("|");
-    return pattern ? colapsado.replace(new RegExp(`^(?:${pattern})\\s*`), "").trim() : colapsado;
+      .sort((left, right) => right.length - left.length);
+    for (const article of normalizedArticles) {
+      if (colapsado === article) return "";
+      if (article.endsWith("'") && colapsado.startsWith(article)) {
+        return colapsado.slice(article.length).trim();
+      }
+      if (colapsado.startsWith(`${article} `)) {
+        return colapsado.slice(article.length + 1).trim();
+      }
+    }
+    return colapsado;
   }
 
   // Clave de un indicador según el tipo de join (number → Number, si no String).

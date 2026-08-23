@@ -26,6 +26,9 @@
     ui: {
       locale: "es-ES",
       slider: { min: -1, max: 1, step: 0.1 },
+      search: { enabled: true, limit: 8, maxZoom: 14 },
+      booleanLabels: { true: "Sí", false: "No" },
+      durationLabels: { hour: "h", minute: "min" },
       labels: {
         noData: "sin dato",
         index: "Índice",
@@ -34,6 +37,10 @@
         weightedIndex: "Índice ponderado (relativo)",
         low: "bajo",
         high: "alto",
+        searchLabel: "Buscar zona",
+        searchPlaceholder: "Buscar zona…",
+        searchNoResults: "No se han encontrado zonas.",
+        searchResultCount: "{count} coincidencias",
       },
     },
 

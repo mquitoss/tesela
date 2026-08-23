@@ -9,6 +9,7 @@
     { "id": "zone-4", "name": "An Amber Bay", "score": 40 }
   ],
   "cases": [
+    { "query": "", "expectedIds": ["zone-3", "zone-4", "zone-1", "zone-2"] },
     { "query": "alpha", "expectedIds": ["zone-1", "zone-3"] },
     { "query": "alpine", "expectedIds": ["zone-2"] },
     { "query": "  AMBER  ", "expectedIds": ["zone-4"] },

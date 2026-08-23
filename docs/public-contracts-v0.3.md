@@ -80,6 +80,8 @@ searchZones(zones, query, {
   canónica y, finalmente, posición original.
 - Un query vacío devuelve todas las zonas ordenadas.
 - La normalización reutiliza las opciones de `join.nameNormalization`.
+- Scores ausentes o no finitos se ordenan al final. Un locale inválido cae a
+  `en`, para que la búsqueda nunca lance.
 
 ## Overlays
 
@@ -126,12 +128,17 @@ capas y listeners anteriores. Los ids duplicados son un error de configuración.
   unit?,
   sinDato?,
   booleanLabels?,
+  durationLabels?,
 }
 ```
 
 `key` y `label` son obligatorios. `format` admite `plain`, `number`, `percent`,
 `boolean` y `duration`. `sinDato` permanece durante la serie 0.x. Secciones y
 ayudas son contenido del host y se insertan como texto, no como HTML externo.
+`boolean` solo acepta booleanos reales y usa etiquetas configurables, con
+`true`/`false` como fallback neutral. `duration` recibe minutos no negativos,
+redondea al minuto y admite etiquetas `{ hour, minute }`, con `h`/`min` como
+fallback.
 
 ## Serialización de fixtures
 

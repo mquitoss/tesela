@@ -11,6 +11,7 @@
       "src/engine/format.js",
       "src/engine/geo.js",
       "src/engine/join.js",
+      "src/engine/search.js",
       "src/engine/scoring.js",
       "src/engine/color.js",
       "src/engine/bundle.js",

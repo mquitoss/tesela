@@ -46,6 +46,7 @@ Tesela. Debe conservarse el orden declarado en `tesela.assets.json`.
 <script src="vendor/tesela/src/engine/format.js"></script>
 <script src="vendor/tesela/src/engine/geo.js"></script>
 <script src="vendor/tesela/src/engine/join.js"></script>
+<script src="vendor/tesela/src/engine/search.js"></script>
 <script src="vendor/tesela/src/engine/scoring.js"></script>
 <script src="vendor/tesela/src/engine/color.js"></script>
 <script src="vendor/tesela/src/engine/bundle.js"></script>

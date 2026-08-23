@@ -35,20 +35,33 @@ function runBrowserScript(context, path) {
 function fakeBrowser() {
   const elements = new Map();
   const styles = new Map();
+  let document;
   const makeElement = (tag = "div") => ({
     tagName: tag.toUpperCase(),
     nodeType: 1,
     children: [],
+    attributes: {},
+    listeners: {},
     className: "",
+    textContent: "",
     classList: { values: new Set(), add(value) { this.values.add(value); } },
-    setAttribute() {},
-    addEventListener() {},
+    setAttribute(name, value) {
+      this.attributes[name] = String(value);
+      if (name === "value") this.value = String(value);
+    },
+    addEventListener(type, handler) { this.listeners[type] = handler; },
+    dispatchEvent(event) {
+      event.target ||= this;
+      if (this.listeners[event.type]) this.listeners[event.type](event);
+    },
+    focus() { document.activeElement = this; },
     appendChild(child) { this.children.push(child); return child; },
     replaceChildren(...children) { this.children = children; },
   });
   for (const id of ["ssm-rail", "ssm-map", "ssm-detail"]) elements.set(id, makeElement());
-  const document = {
+  document = {
     readyState: "complete",
+    activeElement: null,
     documentElement: { style: { setProperty: (name, value) => styles.set(name, value) } },
     createElement: makeElement,
     createTextNode: (text) => ({ nodeType: 3, textContent: text }),
@@ -67,6 +80,7 @@ function fakeBrowser() {
           bindTooltip() {},
           on() {},
           setStyle() {},
+          getBounds: () => bounds,
         });
       }
       return {
@@ -79,6 +93,11 @@ function fakeBrowser() {
   const context = browserContext();
   Object.assign(context, { window: context, document, L, console });
   return { context, elements, styles };
+}
+
+function descendants(node) {
+  const children = node?.children || [];
+  return children.flatMap((child) => [child, ...descendants(child)]);
 }
 
 describe("namespace Tesela", () => {
@@ -126,7 +145,7 @@ describe("shell zero-build", () => {
     const { context, elements, styles } = fakeBrowser();
     for (const path of [
       "src/engine/namespace.js", "app.config.js", "data/bundle.js",
-      "src/engine/format.js", "src/engine/geo.js", "src/engine/join.js",
+      "src/engine/format.js", "src/engine/geo.js", "src/engine/join.js", "src/engine/search.js",
       "src/engine/scoring.js", "src/engine/color.js", "src/engine/bundle.js",
       "src/engine/config.js", "src/engine/extensions.js", "src/adapters/domain.js",
       "src/app.js",
@@ -150,13 +169,27 @@ describe("shell zero-build", () => {
       indicators: [{ codi: 1, nom: "Zona legacy", poblacio: 10, area_km2: 1, densitat: 10 }],
     };
     for (const path of [
-      "src/engine/format.js", "src/engine/geo.js", "src/engine/join.js",
+      "src/engine/format.js", "src/engine/geo.js", "src/engine/join.js", "src/engine/search.js",
       "src/engine/scoring.js", "src/engine/color.js", "src/engine/bundle.js",
       "src/engine/config.js", "src/engine/extensions.js", "src/adapters/domain.js",
       "src/app.js",
     ]) runBrowserScript(context, path);
     expect(context.Tesela.app.getState().zones).toBe(1);
     expect(context.Tesela.app.getState().matched).toBe(1);
+
+    const rail = context.document.getElementById("ssm-rail");
+    const input = descendants(rail).find((node) => node.attributes?.type === "search");
+    expect(input).toBeTruthy();
+    input.value = "legacy";
+    input.dispatchEvent({ type: "input" });
+    const result = descendants(rail).find((node) => node.className === "tesela-search-result");
+    expect(result).toBeTruthy();
+    const form = descendants(rail).find((node) => node.className === "tesela-search");
+    let prevented = false;
+    form.dispatchEvent({ type: "submit", preventDefault: () => { prevented = true; } });
+    expect(prevented).toBe(true);
+    expect(context.Tesela.app.getState().selected.name).toBe("Zona legacy");
+    expect(context.document.getElementById("ssm-detail").attributes["aria-hidden"]).toBe("false");
   });
 });
 
@@ -172,11 +205,16 @@ describe("distribución como submódulo", () => {
     ]) {
       expect(existsSync(resolve(process.cwd(), path)), path).toBe(true);
     }
+    const engineAssets = assetManifest.scripts.engine;
+    expect(engineAssets.indexOf("src/engine/search.js"))
+      .toBe(engineAssets.indexOf("src/engine/join.js") + 1);
   });
 
   it("mantiene estilos fuera del HTML y ofrece una plantilla de host", () => {
     const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
     expect(html).toContain('href="src/ui/tesela.css"');
+    expect(html.indexOf('src="src/engine/search.js"'))
+      .toBeGreaterThan(html.indexOf('src="src/engine/join.js"'));
     expect(html).not.toContain("<style>");
     expect(existsSync(resolve(process.cwd(), "templates/submodule-host/index.html"))).toBe(true);
     expect(existsSync(resolve(process.cwd(), "templates/submodule-host/scripts/source.py"))).toBe(true);
@@ -245,6 +283,29 @@ describe("configuración", () => {
     expect(errors).toMatch(/sign debe ser 1 o -1/);
     expect(errors).toMatch(/defaultWeight debe ser finito/);
     expect(errors).toMatch(/weights\.quality debe ser finito/);
+  });
+
+  it("valida búsqueda y formatos localizables", () => {
+    const invalid = {
+      join: { property: "ID", keyField: "id" },
+      ui: {
+        locale: "",
+        search: { enabled: "yes", limit: 0, maxZoom: -1 },
+        booleanLabels: { true: "Sí" },
+      },
+      indicators: [{ key: "flag", label: "", format: "currency", decimals: 21 }],
+      detail: { fields: [{ key: "flag", label: "Flag", booleanLabels: { true: "Sí" } }] },
+    };
+    const errors = configEngine.validateConfig(invalid).errors.join(" ");
+    expect(errors).toMatch(/ui\.locale/);
+    expect(errors).toMatch(/ui\.search\.enabled/);
+    expect(errors).toMatch(/ui\.search\.limit/);
+    expect(errors).toMatch(/ui\.search\.maxZoom/);
+    expect(errors).toMatch(/ui\.booleanLabels/);
+    expect(errors).toMatch(/indicators\[0\]\.label/);
+    expect(errors).toMatch(/format no está soportado/);
+    expect(errors).toMatch(/decimals debe ser un entero/);
+    expect(errors).toMatch(/detail\.fields\[0\]\.booleanLabels/);
   });
 });
 

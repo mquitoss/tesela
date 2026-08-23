@@ -8,6 +8,19 @@
       accent: "#5eead4",
       dataNamespace: "TESELA_DATA",
     },
+    ui: {
+      locale: "es-ES",
+      search: { enabled: true, limit: 8, maxZoom: 12 },
+      booleanLabels: { true: "Sí", false: "No" },
+      durationLabels: { hour: "h", minute: "min" },
+      labels: {
+        noData: "sin dato",
+        searchLabel: "Buscar zona",
+        searchPlaceholder: "Buscar zona…",
+        searchNoResults: "No se han encontrado zonas.",
+        searchResultCount: "{count} coincidencias",
+      },
+    },
     mounts: { rail: "map-controls", map: "map", detail: "map-detail" },
     map: {
       center: [41.5, 2],
