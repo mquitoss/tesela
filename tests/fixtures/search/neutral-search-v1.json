@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "locale": "en",
+  "normalization": { "removeArticles": true, "articles": ["the", "an"] },
+  "zones": [
+    { "id": "zone-1", "name": "Álpha Ridge", "score": 20 },
+    { "id": "zone-2", "name": "The Alpine Vale", "score": 10 },
+    { "id": "zone-3", "name": "Vale of Alpha", "score": 90 },
+    { "id": "zone-4", "name": "An Amber Bay", "score": 40 }
+  ],
+  "cases": [
+    { "query": "alpha", "expectedIds": ["zone-1", "zone-3"] },
+    { "query": "alpine", "expectedIds": ["zone-2"] },
+    { "query": "  AMBER  ", "expectedIds": ["zone-4"] },
+    { "query": "vale", "expectedIds": ["zone-3", "zone-2"] },
+    { "query": "missing", "expectedIds": [] }
+  ]
+}

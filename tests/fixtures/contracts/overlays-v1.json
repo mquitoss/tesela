@@ -1,0 +1,10 @@
+{
+  "valid": [
+    { "id": "context", "label": "Context", "type": "tile", "enabled": true, "url": "https://tiles.example/{z}/{x}/{y}.png", "attribution": "Example" },
+    { "id": "places", "label": "Places", "type": "markers", "enabled": false, "items": [{ "id": "point-1", "lat": 1, "lon": 2 }] }
+  ],
+  "invalid": [
+    { "id": "", "label": "Missing id", "type": "tile", "url": "https://tiles.example/{z}/{x}/{y}.png" },
+    { "id": "unknown", "label": "Unknown", "type": "other" }
+  ]
+}

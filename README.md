@@ -33,6 +33,11 @@ Tesela puede consumirse directamente o fijarse como Git submodule. En ese modo,
 el host mantiene fuera del submódulo su config, Source, datos y adapter. Consulta
 [`docs/submodule.md`](docs/submodule.md).
 
+Los contratos objetivo de scoring, búsqueda, overlays, providers y detalle para
+la próxima versión están congelados en
+[`docs/public-contracts-v0.3.md`](docs/public-contracts-v0.3.md). El documento
+distingue expresamente esas APIs de las capacidades ya publicadas en 0.2.
+
 ## Arranque rápido
 
 ```bash
@@ -152,6 +157,7 @@ conservan durante la serie `0.x`. Consulta
 | `scripts/build_data.py` | Source → bundle validado |
 | `tests/` | Vitest y pytest |
 | `docs/tesela-upgrade-plan.md` | Plan evolutivo hasta Tesela 1.0 |
+| `docs/public-contracts-v0.3.md` | Contratos objetivo de Tesela 0.3 |
 | `tesela.assets.json` | Orden y versión de assets públicos |
 | `templates/submodule-host/` | Proyecto host mínimo para copiar |
 

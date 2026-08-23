@@ -1,0 +1,11 @@
+{
+  "valid": [
+    { "key": "metric_a", "label": "Metric A", "section": "Summary", "help": "Neutral explanation", "format": "number", "decimals": 1, "unit": "u" },
+    { "key": "flag_a", "label": "Flag A", "format": "boolean", "booleanLabels": { "true": "Yes", "false": "No" } },
+    { "key": "time_a", "label": "Time A", "format": "duration", "sinDato": "n/a" }
+  ],
+  "invalid": [
+    { "label": "Missing key" },
+    { "key": "metric_a", "label": "Unknown format", "format": "currency" }
+  ]
+}
