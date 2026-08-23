@@ -100,9 +100,11 @@
     // Cada factor referencia un indicador. kind "minmax" normaliza y suma
     // sign·peso·norm; kind "penalty" resta peso·flag(0/1). `baseMetric` es el
     // indicador requerido para entrar al ranking (zonas sin él → score null).
+    // `minCoverage` exige una proporción mínima de peso con datos disponibles.
     scoring: {
       baseMetric: "densitat",
       keyField: "codi",
+      minCoverage: 0.65,
       factors: [
         {
           key: "densidad",

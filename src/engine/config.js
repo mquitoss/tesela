@@ -98,7 +98,25 @@
     if (config.color != null && !isObject(config.color)) errors.push("color debe ser un objeto");
     else if (config.color?.ramp != null) validateRamp(config.color.ramp, errors);
 
+    if (config.scoring != null && !isObject(config.scoring)) {
+      errors.push("scoring debe ser un objeto");
+    }
     const scoring = isObject(config.scoring) ? config.scoring : {};
+    if (scoring.keyField != null && !isNonEmptyString(scoring.keyField)) {
+      errors.push("scoring.keyField debe ser un texto no vacío");
+    }
+    if (scoring.baseMetric != null && !isNonEmptyString(scoring.baseMetric)) {
+      errors.push("scoring.baseMetric debe ser un texto no vacío");
+    }
+    if (scoring.minCoverage != null) {
+      const minCoverage = Number(scoring.minCoverage);
+      if (!Number.isFinite(minCoverage) || minCoverage < 0 || minCoverage > 1) {
+        errors.push("scoring.minCoverage debe ser un número entre 0 y 1");
+      }
+    }
+    if (scoring.factors != null && !Array.isArray(scoring.factors)) {
+      errors.push("scoring.factors debe ser un array");
+    }
     const factors = Array.isArray(scoring.factors) ? scoring.factors : [];
     factors.forEach((factor, index) => {
       if (!isNonEmptyString(factor?.key)) errors.push(`scoring.factors[${index}].key es obligatorio`);
@@ -107,6 +125,12 @@
       }
       if (factor?.kind && !["minmax", "penalty"].includes(factor.kind)) {
         errors.push(`scoring.factors[${index}].kind no está soportado`);
+      }
+      if (factor?.sign != null && ![1, -1].includes(factor.sign)) {
+        errors.push(`scoring.factors[${index}].sign debe ser 1 o -1`);
+      }
+      if (factor?.defaultWeight != null && !Number.isFinite(Number(factor.defaultWeight))) {
+        errors.push(`scoring.factors[${index}].defaultWeight debe ser finito`);
       }
     });
     for (const key of duplicateValues(factors, "key")) {
@@ -120,8 +144,14 @@
     }
     presets.forEach((preset, index) => {
       if (!isNonEmptyString(preset?.id)) errors.push(`scoring.presets[${index}].id es obligatorio`);
+      if (preset?.weights != null && !isObject(preset.weights)) {
+        errors.push(`scoring.presets[${index}].weights debe ser un objeto`);
+      }
       for (const key of Object.keys(preset?.weights || {})) {
         if (!factorKeys.has(key)) errors.push(`scoring.presets[${index}].weights.${key} no referencia un factor`);
+        if (!Number.isFinite(Number(preset.weights[key]))) {
+          errors.push(`scoring.presets[${index}].weights.${key} debe ser finito`);
+        }
       }
     });
     if (scoring.defaultPreset && !presets.some((preset) => preset.id === scoring.defaultPreset)) {

@@ -109,8 +109,7 @@
       return;
     }
     const results = E.computeScores(indicators, state.weights, {
-      factors: scoring.factors || [],
-      baseMetric: scoring.baseMetric,
+      ...scoring,
       keyField: scoring.keyField || CONFIG.join.keyField,
     });
     state.scoresByKey = new Map(results.map((result) => [String(result.key), result]));
@@ -164,7 +163,7 @@
     const metric = (CONFIG.color && CONFIG.color.metric) || "score";
     if (metric === "score") {
       const r = scoreFor(zone);
-      return r ? r.scoreN : null; // scoreN ya está en [0,1]
+      return r && r.status === E.SCORE_STATUS.AVAILABLE ? r.scoreN : null;
     }
     return zone.ind ? zone.ind[metric] : null;
   }
@@ -198,7 +197,9 @@
     let val;
     if (metric === "score") {
       const r = scoreFor(zone);
-      val = r && r.score != null ? `${r.score}/100` : label("noData", "sin dato");
+      val = r && r.status === E.SCORE_STATUS.AVAILABLE
+        ? `${r.score}/100`
+        : label("noData", "sin dato");
     } else {
       const field = (CONFIG.indicators || []).find((f) => f.key === metric) || {};
       val = formatField(zone.ind ? zone.ind[metric] : null, field);
@@ -246,7 +247,7 @@
       ]),
     );
     const scoreLine =
-      r && r.score != null
+      r && r.status === E.SCORE_STATUS.AVAILABLE
         ? el("div", { class: "ssm-score" }, [`${label("index", "Índice")}: ${r.score}/100`])
         : null;
     panel.replaceChildren();

@@ -6,7 +6,8 @@ capacidad disponible en Tesela 0.2.
 
 ## Convenciones
 
-- `null` representa ausencia; cadenas vacías y booleanos no son números.
+- `null` representa ausencia. Se aceptan números finitos y cadenas que contienen
+  un número; cadenas vacías, booleanos, `NaN` e infinitos son huecos.
 - Las claves conservan su tipo de entrada.
 - Los resultados alineados conservan el orden de entrada.
 - Los ids de factores, presets, overlays y providers son únicos y no vacíos.
@@ -41,8 +42,9 @@ Reglas:
 
 1. Un peso finito mayor que cero activa el factor. Cero, negativos y valores no
    finitos lo desactivan.
-2. La cobertura es `peso disponible / peso activo`; los pesos se cuentan por su
-   magnitud positiva. Los factores inactivos no aparecen en `missingFactors`.
+2. La cobertura es `suma de pesos de factores con dato / suma de todos los pesos
+   activos`. Los pesos se cuentan por su magnitud positiva. Los factores
+   inactivos no aparecen en `missingFactors`.
 3. Un factor min-max está disponible cuando contiene un número finito. Un penalty
    está disponible cuando contiene un booleano; `false` es un valor disponible.
 4. Las contribuciones ausentes son `null`, nunca cero imputado.
@@ -55,6 +57,10 @@ Reglas:
    Su total se divide por el peso disponible antes del min-max final.
 8. `minCoverage` por defecto es cero. `baseMetric` sigue siendo opcional para
    compatibilidad con Tesela 0.2.
+
+`explainScore(result, weights)` devuelve `{ status, coverage, presentFactors,
+missingFactors }`. Solo considera presentes los factores con peso activo y una
+contribución no nula.
 
 ## Búsqueda
 

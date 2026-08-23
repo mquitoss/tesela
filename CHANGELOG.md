@@ -5,6 +5,8 @@
 ### Añadido
 
 - Contratos públicos objetivo y fixtures neutrales de paridad para Tesela 0.3.
+- Scoring con cobertura ponderada, estados explícitos y diagnóstico de factores
+  ausentes.
 
 ## [0.2.0] - 2026-08-23
 

@@ -219,6 +219,33 @@ describe("configuración", () => {
     expect(result.errors.join(" ")).toMatch(/no existe/);
     expect(result.errors.join(" ")).toMatch(/canales 0\.\.255/);
   });
+
+  it("valida el contrato de scoring explicable", () => {
+    const invalid = {
+      join: { property: "ID", keyField: "id" },
+      scoring: {
+        keyField: "",
+        baseMetric: 42,
+        minCoverage: 1.1,
+        factors: [{
+          key: "quality",
+          indicator: "value",
+          kind: "unknown",
+          sign: 0,
+          defaultWeight: Infinity,
+        }],
+        presets: [{ id: "default", weights: { quality: NaN } }],
+      },
+    };
+    const errors = configEngine.validateConfig(invalid).errors.join(" ");
+    expect(errors).toMatch(/scoring\.keyField/);
+    expect(errors).toMatch(/scoring\.baseMetric/);
+    expect(errors).toMatch(/scoring\.minCoverage/);
+    expect(errors).toMatch(/kind no está soportado/);
+    expect(errors).toMatch(/sign debe ser 1 o -1/);
+    expect(errors).toMatch(/defaultWeight debe ser finito/);
+    expect(errors).toMatch(/weights\.quality debe ser finito/);
+  });
 });
 
 describe("sistema de releases", () => {
