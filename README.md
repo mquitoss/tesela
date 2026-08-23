@@ -85,6 +85,11 @@ describen navegación y capas sin acoplar el shell a una región. Los overlays t
 y markers pueden agruparse bajo un mismo toggle y se limpian al reconstruir el
 mapa.
 
+`detail.fields` puede agrupar indicadores mediante `section` y documentarlos con
+`help`. A partir de esos descriptores Tesela genera detalle y glosario accesible;
+`detail.notices` y `methodology` permiten añadir avisos, fuentes y proceso usando
+solo contenido textual del proyecto consumidor.
+
 ## Slots de UI
 
 La primera API de extensión incluye:
@@ -162,6 +167,7 @@ conservan durante la serie `0.x`. Consulta
 | `src/engine/extensions.js` | Slots aislados |
 | `src/ui/tesela.css` | Estilos públicos reutilizables |
 | `src/ui/map-layers.js` | Capas, selección, etiquetas y ciclo de vida Leaflet |
+| `src/ui/detail.js` | Detalle, glosario, metodología y gestión de foco |
 | `src/engine/*.js` | Motor agnóstico |
 | `src/app.js` | Shell Leaflet/DOM |
 | `src/adapters/domain.js` | Hooks y slots de dominio |

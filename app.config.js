@@ -45,7 +45,12 @@
     },
 
     // Los ids son configurables para incrustar varias apps o usar otro shell.
-    mounts: { rail: "ssm-rail", map: "ssm-map", detail: "ssm-detail" },
+    mounts: {
+      rail: "ssm-rail",
+      map: "ssm-map",
+      detail: "ssm-detail",
+      glossary: "ssm-glossary",
+    },
 
     // --- Mapa base ----------------------------------------------------------
     map: {
@@ -165,12 +170,60 @@
 
     // --- Panel de detalle (al hacer click en una zona) ----------------------
     detail: {
+      closeLabel: "Cerrar detalle",
+      glossary: {
+        enabled: true,
+        triggerLabel: "Guía de indicadores",
+        eyebrow: "Guía de lectura",
+        title: "Qué significa cada dato",
+        intro: "Definiciones de los campos mostrados en este mapa de ejemplo.",
+        closeLabel: "Cerrar guía",
+      },
+      notices: [
+        "Los valores del ejemplo son descriptivos y dependen de la cobertura del dataset publicado.",
+      ],
       fields: [
-        { key: "poblacio", label: "Población", format: "number", unit: "hab." },
-        { key: "area_km2", label: "Superficie", format: "number", decimals: 2, unit: "km²" },
-        { key: "densitat", label: "Densidad", format: "number", unit: "hab/km²" },
+        {
+          section: "Demografía",
+          key: "poblacio",
+          label: "Población",
+          format: "number",
+          unit: "hab.",
+          help: "Número de habitantes registrado para la zona en el periodo de referencia.",
+        },
+        {
+          section: "Territorio",
+          key: "area_km2",
+          label: "Superficie",
+          format: "number",
+          decimals: 2,
+          unit: "km²",
+          help: "Superficie aproximada de la geometría expresada en kilómetros cuadrados.",
+        },
+        {
+          key: "densitat",
+          label: "Densidad",
+          format: "number",
+          unit: "hab/km²",
+          help: "Relación entre población y superficie; permite comparar zonas de tamaños distintos.",
+        },
       ],
       // simulator: null,  // un dominio con simulador define aquí su descriptor
+    },
+
+    methodology: {
+      enabled: true,
+      label: "Datos y metodología",
+      summary: "Ejemplo estático construido a partir de geometrías e indicadores precalculados.",
+      sourcesLabel: "Fuentes",
+      sources: [{ name: "Open Data BCN", role: "Geometrías e indicadores del ejemplo." }],
+      stepsLabel: "Proceso",
+      steps: [
+        "Normalización de las claves territoriales.",
+        "Unión de geometrías e indicadores.",
+        "Generación de un bundle estático reproducible.",
+      ],
+      links: [{ label: "Portal Open Data BCN", url: "https://opendata-ajuntament.barcelona.cat/" }],
     },
 
     // Slots opcionales: sidebar.afterStatus, sidebar.afterControls,

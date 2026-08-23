@@ -177,8 +177,9 @@ body.tesela-layout {
   transition: transform 0.2s ease;
   border-left: 1px solid var(--tesela-line);
   background: var(--tesela-panel);
+  visibility: hidden;
 }
-.tesela-detail.open, #ssm-detail.open { transform: translateX(0); }
+.tesela-detail.open, #ssm-detail.open { transform: translateX(0); visibility: visible; }
 .tesela-detail h2, #ssm-detail h2 { margin: 0 0 10px; font-size: 16px; }
 .tesela-detail .ssm-score, #ssm-detail .ssm-score {
   margin-bottom: 12px;
@@ -193,13 +194,109 @@ body.tesela-layout {
   font-size: 13px;
 }
 .ssm-row-label { color: var(--tesela-muted); }
+.tesela-detail-head,
+.tesela-glossary-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tesela-detail-actions { display: flex; align-items: center; gap: 6px; }
+.tesela-panel-close,
+.tesela-glossary-trigger {
+  min-width: 40px;
+  min-height: 40px;
+  border: 1px solid var(--tesela-line);
+  border-radius: 7px;
+  background: #0e1416;
+  color: var(--tesela-ink);
+  cursor: pointer;
+}
+.tesela-glossary-trigger { padding: 7px 9px; font-size: 11px; }
+.tesela-panel-close { font-size: 20px; line-height: 1; }
+.tesela-panel-close:focus-visible,
+.tesela-glossary-trigger:focus-visible,
+.tesela-methodology summary:focus-visible,
+.tesela-methodology a:focus-visible {
+  outline: 2px solid var(--tesela-accent);
+  outline-offset: 2px;
+}
+.tesela-detail-section,
+.tesela-glossary-section { margin-top: 18px; }
+.tesela-detail-section h3,
+.tesela-glossary-section h3,
+.tesela-methodology-content h3 {
+  margin: 0 0 6px;
+  color: var(--tesela-accent);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.tesela-detail-fields,
+.tesela-glossary-fields { margin: 0; }
+.tesela-detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--tesela-line);
+}
+.tesela-detail-row dt { color: var(--tesela-muted); }
+.tesela-detail-row dd { margin: 0; text-align: right; }
+.tesela-detail-notice {
+  margin: 14px 0 0;
+  padding: 9px 10px;
+  border-left: 3px solid var(--tesela-accent);
+  background: #0e1416;
+  color: var(--tesela-muted);
+  font-size: 11px;
+}
+.tesela-glossary {
+  position: fixed;
+  z-index: 1100;
+  top: 18px;
+  right: 318px;
+  width: min(440px, calc(100vw - 336px));
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  padding: 18px;
+  transform: translateY(12px);
+  opacity: 0;
+  visibility: hidden;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  border: 1px solid var(--tesela-line);
+  border-radius: 10px;
+  background: var(--tesela-panel);
+  color: var(--tesela-ink);
+}
+.tesela-glossary.open { transform: translateY(0); opacity: 1; visibility: visible; }
+.tesela-eyebrow { margin: 0 0 3px; color: var(--tesela-accent); font-size: 10px; }
+.tesela-glossary-head h2 { margin: 0; font-size: 18px; }
+.tesela-glossary-intro { color: var(--tesela-muted); font-size: 12px; }
+.tesela-glossary-row { padding: 7px 0; }
+.tesela-glossary-row dt { font-weight: 700; }
+.tesela-glossary-row dd { margin: 2px 0 0; color: var(--tesela-muted); font-size: 12px; }
+.tesela-methodology {
+  margin: 0 0 16px;
+  border: 1px solid var(--tesela-line);
+  border-radius: 8px;
+  background: #0e1416;
+}
+.tesela-methodology summary { padding: 9px 10px; cursor: pointer; font-size: 12px; }
+.tesela-methodology-content { padding: 0 10px 11px; color: var(--tesela-muted); font-size: 11px; }
+.tesela-methodology-content p { margin: 5px 0 10px; }
+.tesela-methodology-content ol { margin: 0; padding-left: 18px; }
+.tesela-methodology-links { display: flex; flex-wrap: wrap; gap: 8px 12px; margin-top: 10px; }
+.tesela-methodology-links a { color: var(--tesela-accent); }
 
 @media (max-width: 760px) {
   body.tesela-layout { display: block; overflow: auto; }
   .tesela-rail, #ssm-rail { max-height: none; border-right: 0; }
   .tesela-map, #ssm-map { height: 65vh; min-height: 420px; }
+  .tesela-detail, #ssm-detail { width: min(100%, 380px); }
+  .tesela-glossary { inset: 8px; width: auto; max-height: calc(100vh - 16px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tesela-detail, #ssm-detail { transition: none; }
+  .tesela-detail, #ssm-detail, .tesela-glossary { transition: none; }
 }

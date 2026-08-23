@@ -58,8 +58,8 @@
         errors.push(`${fieldPath}.decimals debe ser un entero entre 0 y 20`);
       }
       for (const key of ["unit", "sinDato", "section", "help"]) {
-        if (field[key] != null && typeof field[key] !== "string") {
-          errors.push(`${fieldPath}.${key} debe ser texto`);
+        if (field[key] != null && !isNonEmptyString(field[key])) {
+          errors.push(`${fieldPath}.${key} debe ser texto no vacío`);
         }
       }
       for (const labelsKey of ["booleanLabels", "durationLabels"]) {
@@ -251,6 +251,87 @@
     }
   }
 
+  function validateDetail(detail, fields, errors) {
+    if (detail == null) return;
+    if (!isObject(detail)) {
+      errors.push("detail debe ser un objeto");
+      return;
+    }
+    if (detail.closeLabel != null && !isNonEmptyString(detail.closeLabel)) {
+      errors.push("detail.closeLabel debe ser texto no vacío");
+    }
+    if (detail.notices != null && (
+      !Array.isArray(detail.notices)
+      || detail.notices.some((notice) => !isNonEmptyString(notice))
+    )) errors.push("detail.notices debe ser un array de textos no vacíos");
+    if (detail.glossary != null) {
+      const glossary = detail.glossary;
+      if (!isObject(glossary)) errors.push("detail.glossary debe ser un objeto");
+      else {
+        if (glossary.enabled != null && typeof glossary.enabled !== "boolean") {
+          errors.push("detail.glossary.enabled debe ser booleano");
+        }
+        if (glossary.enabled !== false) {
+          for (const key of ["triggerLabel", "title", "closeLabel"]) {
+            if (!isNonEmptyString(glossary[key])) {
+              errors.push(`detail.glossary.${key} es obligatorio`);
+            }
+          }
+          if (!fields.some((field) => isNonEmptyString(field?.help))) {
+            errors.push("detail.glossary requiere al menos un campo con help");
+          }
+        }
+        for (const key of ["eyebrow", "intro"]) {
+          if (glossary[key] != null && !isNonEmptyString(glossary[key])) {
+            errors.push(`detail.glossary.${key} debe ser texto no vacío`);
+          }
+        }
+      }
+    }
+  }
+
+  function validateMethodology(methodology, errors) {
+    if (methodology == null) return;
+    if (!isObject(methodology)) {
+      errors.push("methodology debe ser un objeto");
+      return;
+    }
+    if (methodology.enabled != null && typeof methodology.enabled !== "boolean") {
+      errors.push("methodology.enabled debe ser booleano");
+    }
+    if (methodology.enabled !== false && !isNonEmptyString(methodology.label)) {
+      errors.push("methodology.label es obligatorio");
+    }
+    for (const key of ["summary", "sourcesLabel", "stepsLabel"]) {
+      if (methodology[key] != null && !isNonEmptyString(methodology[key])) {
+        errors.push(`methodology.${key} debe ser texto no vacío`);
+      }
+    }
+    if (methodology.sources != null && !Array.isArray(methodology.sources)) {
+      errors.push("methodology.sources debe ser un array");
+    }
+    (Array.isArray(methodology.sources) ? methodology.sources : []).forEach((source, index) => {
+      if (!isObject(source)
+        || !isNonEmptyString(source.name)
+        || !isNonEmptyString(source.role)) {
+        errors.push(`methodology.sources[${index}] debe definir name y role`);
+      }
+    });
+    if (methodology.steps != null && (
+      !Array.isArray(methodology.steps)
+      || methodology.steps.some((step) => !isNonEmptyString(step))
+    )) errors.push("methodology.steps debe ser un array de textos no vacíos");
+    if (methodology.links != null && !Array.isArray(methodology.links)) {
+      errors.push("methodology.links debe ser un array");
+    }
+    (Array.isArray(methodology.links) ? methodology.links : []).forEach((link, index) => {
+      if (!isObject(link) || !isNonEmptyString(link.label)
+        || !isNonEmptyString(link.url) || !/^https:\/\//i.test(link.url)) {
+        errors.push(`methodology.links[${index}] debe definir label y una URL HTTPS`);
+      }
+    });
+  }
+
   function validateConfig(config) {
     const errors = [];
     if (!isObject(config)) return { valid: false, errors: ["config debe ser un objeto"] };
@@ -314,7 +395,7 @@
     if (config.mounts != null) {
       if (!isObject(config.mounts)) errors.push("mounts debe ser un objeto");
       else {
-        for (const key of ["rail", "map", "detail"]) {
+        for (const key of ["rail", "map", "detail", "glossary"]) {
           if (config.mounts[key] != null && !isNonEmptyString(config.mounts[key])) {
             errors.push(`mounts.${key} debe ser un id no vacío`);
           }
@@ -408,6 +489,8 @@
     const detailFields = config.detail?.fields;
     if (detailFields != null && !Array.isArray(detailFields)) errors.push("detail.fields debe ser un array");
     validateFields(Array.isArray(detailFields) ? detailFields : [], "detail.fields", errors);
+    validateDetail(config.detail, Array.isArray(detailFields) ? detailFields : [], errors);
+    validateMethodology(config.methodology, errors);
 
     const slots = config.extensions?.slots;
     if (slots != null && !isObject(slots)) errors.push("extensions.slots debe ser un objeto");

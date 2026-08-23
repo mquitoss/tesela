@@ -44,11 +44,19 @@ function fakeBrowser() {
     listeners: {},
     className: "",
     textContent: "",
-    classList: { values: new Set(), add(value) { this.values.add(value); } },
+    classList: {
+      values: new Set(),
+      add(value) { this.values.add(value); },
+      remove(value) { this.values.delete(value); },
+      contains(value) { return this.values.has(value); },
+    },
     setAttribute(name, value) {
       this.attributes[name] = String(value);
       if (name === "value") this.value = String(value);
+      if (name === "id") this.id = String(value);
     },
+    getAttribute(name) { return this.attributes[name] ?? null; },
+    removeAttribute(name) { delete this.attributes[name]; },
     addEventListener(type, handler) { this.listeners[type] = handler; },
     dispatchEvent(event) {
       event.target ||= this;
@@ -58,7 +66,11 @@ function fakeBrowser() {
     appendChild(child) { this.children.push(child); return child; },
     replaceChildren(...children) { this.children = children; },
   });
-  for (const id of ["ssm-rail", "ssm-map", "ssm-detail"]) elements.set(id, makeElement());
+  for (const id of ["ssm-rail", "ssm-map", "ssm-detail", "ssm-glossary"]) {
+    const element = makeElement();
+    element.id = id;
+    elements.set(id, element);
+  }
   document = {
     readyState: "complete",
     activeElement: null,
@@ -67,6 +79,7 @@ function fakeBrowser() {
     createTextNode: (text) => ({ nodeType: 3, textContent: text }),
     getElementById: (id) => elements.get(id) || null,
     addEventListener() {},
+    removeEventListener() {},
   };
   const bounds = {
     isValid: () => true,
@@ -190,7 +203,7 @@ describe("shell zero-build", () => {
       "src/engine/namespace.js", "app.config.js", "data/bundle.js",
       "src/engine/format.js", "src/engine/geo.js", "src/engine/join.js", "src/engine/search.js",
       "src/engine/scoring.js", "src/engine/color.js", "src/engine/bundle.js",
-      "src/engine/config.js", "src/engine/extensions.js", "src/ui/map-layers.js", "src/adapters/domain.js",
+      "src/engine/config.js", "src/engine/extensions.js", "src/ui/map-layers.js", "src/ui/detail.js", "src/adapters/domain.js",
       "src/app.js",
     ]) runBrowserScript(context, path);
 
@@ -214,7 +227,7 @@ describe("shell zero-build", () => {
     for (const path of [
       "src/engine/format.js", "src/engine/geo.js", "src/engine/join.js", "src/engine/search.js",
       "src/engine/scoring.js", "src/engine/color.js", "src/engine/bundle.js",
-      "src/engine/config.js", "src/engine/extensions.js", "src/ui/map-layers.js", "src/adapters/domain.js",
+      "src/engine/config.js", "src/engine/extensions.js", "src/ui/map-layers.js", "src/ui/detail.js", "src/adapters/domain.js",
       "src/app.js",
     ]) runBrowserScript(context, path);
     expect(context.Tesela.app.getState().zones).toBe(1);
@@ -233,6 +246,18 @@ describe("shell zero-build", () => {
     expect(prevented).toBe(true);
     expect(context.Tesela.app.getState().selected.name).toBe("Zona legacy");
     expect(context.document.getElementById("ssm-detail").attributes["aria-hidden"]).toBe("false");
+    const glossaryTrigger = descendants(context.document.getElementById("ssm-detail"))
+      .find((node) => node.className === "tesela-glossary-trigger");
+    glossaryTrigger.dispatchEvent({ type: "click" });
+    expect(context.document.getElementById("ssm-glossary").attributes["aria-hidden"]).toBe("false");
+    const glossaryClose = descendants(context.document.getElementById("ssm-glossary"))
+      .find((node) => node.className === "tesela-panel-close");
+    glossaryClose.dispatchEvent({ type: "click" });
+    const detailClose = descendants(context.document.getElementById("ssm-detail"))
+      .find((node) => node.className === "tesela-panel-close");
+    detailClose.dispatchEvent({ type: "click" });
+    expect(context.Tesela.app.getState().selected).toBeNull();
+    expect(context.document.getElementById("ssm-detail").attributes.inert).toBe("");
   });
 });
 
@@ -259,6 +284,8 @@ describe("distribución como submódulo", () => {
     expect(html.indexOf('src="src/engine/search.js"'))
       .toBeGreaterThan(html.indexOf('src="src/engine/join.js"'));
     expect(html).toContain('src="src/ui/map-layers.js"');
+    expect(html).toContain('src="src/ui/detail.js"');
+    expect(html).toContain('id="ssm-glossary"');
     expect(html).not.toContain("<style>");
     expect(existsSync(resolve(process.cwd(), "templates/submodule-host/index.html"))).toBe(true);
     expect(existsSync(resolve(process.cwd(), "templates/submodule-host/scripts/source.py"))).toBe(true);

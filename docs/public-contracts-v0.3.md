@@ -166,6 +166,53 @@ ayudas son contenido del host y se insertan como texto, no como HTML externo.
 redondea al minuto y admite etiquetas `{ hour, minute }`, con `h`/`min` como
 fallback.
 
+Un campo con `section` inicia una sección que incluye los campos siguientes
+hasta el próximo descriptor con `section`. `help` aporta la definición del
+campo al glosario; no se mantiene una segunda lista de definiciones.
+
+El detalle admite contenido textual del host:
+
+```js
+detail: {
+  closeLabel,
+  fields,
+  notices: ["..."],
+  glossary: {
+    enabled,
+    triggerLabel,
+    eyebrow?,
+    title,
+    intro?,
+    closeLabel,
+  },
+}
+```
+
+Los avisos aparecen después de los campos. El glosario solo incluye campos con
+`help`, se abre como diálogo no modal y sincroniza `aria-hidden`, `inert`,
+`aria-expanded`, foco y Escape. Escape cierra primero el glosario y después el
+detalle. Los textos se insertan como texto, nunca como HTML declarativo.
+
+La procedencia se declara fuera del detalle:
+
+```js
+methodology: {
+  enabled,
+  label,
+  summary?,
+  sourcesLabel?,
+  sources: [{ name, role }],
+  stepsLabel?,
+  steps: ["..."],
+  links: [{ label, url }],
+}
+```
+
+Tesela la representa mediante `<details>`. Los enlaces deben ser HTTPS. Todo el
+contenido pertenece al host; el motor solo aporta estructura, validación y
+accesibilidad. `Tesela.ui.createDetailController` expone `open`, `close`,
+`openGlossary`, `closeGlossary` y `destroy`.
+
 ## Serialización de fixtures
 
 Los fixtures de paridad se serializan como JSON UTF-8 compacto. Arrays tienen

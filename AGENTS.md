@@ -28,6 +28,7 @@ No añadas nombres de métricas, fuentes o reglas de negocio a `src/engine/*`.
 | coropleta | `color.metric`, `color.ramp`, `color.noData` |
 | scoring y tesis | `scoring.factors`, `scoring.presets` |
 | bloques UI adicionales | `extensions.slots` o `adapters.slots` |
+| glosario, avisos, fuentes y proceso | `detail` y `methodology` |
 
 La configuración se valida en runtime. No desactives la validación para ocultar
 errores; corrige la ruta indicada.
@@ -63,6 +64,9 @@ HTML de fuentes externas.
   requiere booleanos reales. Localiza sus etiquetas desde `ui` o el campo.
 - Overlays, puntos de referencia y etiquetas se declaran en `map`; no codifiques
   nombres regionales dentro de `src/ui/map-layers.js`.
+- Las definiciones, avisos y fuentes pertenecen al host. Usa `help`, `notices` y
+  `methodology`; no introduzcas HTML declarativo ni contenido de dominio en
+  `src/ui/detail.js`.
 - La clave canónica tiene prioridad; el nombre solo puede ser fallback explícito.
 - El motor no conoce el dominio.
 - Los errores de datos se corrigen en el Source, no se silencian en la UI.

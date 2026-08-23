@@ -12,6 +12,8 @@
 - Selección persistente, panes, overlays tile/markers, etiquetas por zoom y
   control de capas declarativos.
 - Gestor Leaflet con reconstrucción y cleanup idempotentes.
+- Detalle seccionado, avisos, glosario derivado y metodología declarativa.
+- Cierre accesible con `inert`, estados ARIA, Escape y restauración de foco.
 
 ### Corregido
 

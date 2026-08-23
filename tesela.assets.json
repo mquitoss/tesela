@@ -17,7 +17,8 @@
       "src/engine/bundle.js",
       "src/engine/config.js",
       "src/engine/extensions.js",
-      "src/ui/map-layers.js"
+      "src/ui/map-layers.js",
+      "src/ui/detail.js"
     ],
     "defaultAdapter": "src/adapters/domain.js",
     "entrypoint": "src/app.js"

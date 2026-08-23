@@ -16,7 +16,8 @@
   <body class="tesela-layout">
     <aside id="ssm-rail" class="tesela-rail" aria-label="Controles del mapa"></aside>
     <main id="ssm-map" class="tesela-map" aria-label="Mapa interactivo"></main>
-    <aside id="ssm-detail" class="tesela-detail" aria-live="polite" aria-hidden="true"></aside>
+    <aside id="ssm-detail" class="tesela-detail" aria-live="polite" aria-hidden="true" inert></aside>
+    <aside id="ssm-glossary" class="tesela-glossary" role="dialog" aria-modal="false" aria-hidden="true" inert></aside>
 
     <!-- 1) Runtime Tesela: crea namespace nuevo y alias SSM compatible. -->
     <script src="src/engine/namespace.js"></script>
@@ -38,6 +39,7 @@
     <script src="src/engine/config.js"></script>
     <script src="src/engine/extensions.js"></script>
     <script src="src/ui/map-layers.js"></script>
+    <script src="src/ui/detail.js"></script>
 
     <!-- 5) Hooks de dominio (opcionales) -->
     <script src="src/adapters/domain.js"></script>

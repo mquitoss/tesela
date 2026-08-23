@@ -20,7 +20,7 @@
     ? runtime.resolveConfig(window)
     : (window.TESELA_CONFIG || window.SSM_CONFIG || {});
   const mounts = Object.assign(
-    { rail: "ssm-rail", map: "ssm-map", detail: "ssm-detail" },
+    { rail: "ssm-rail", map: "ssm-map", detail: "ssm-detail", glossary: "ssm-glossary" },
     CONFIG.mounts || {},
   );
   const ui = CONFIG.ui || {};
@@ -35,6 +35,7 @@
     selected: null,
     query: "",
     mapLayers: null,
+    detailController: null,
     baseLayer: null,
     refreshSearch: null,
     map: null,
@@ -119,6 +120,7 @@
     state.scoresByKey = new Map(results.map((result) => [String(result.key), result]));
     state.extent = computeColorExtent();
     if (typeof state.refreshSearch === "function") state.refreshSearch();
+    refreshSelectedDetail();
   }
 
   function scoreFor(zone) {
@@ -220,44 +222,43 @@
   }
 
   // ---- panel de detalle ------------------------------------------------------
-  function selectZone(zone, focusDetail) {
-    state.selected = zone;
-    state.mapLayers?.setSelection(zone);
-    const panel = mount("detail");
-    if (!panel) return;
-    const fields = (CONFIG.detail && CONFIG.detail.fields) || CONFIG.indicators || [];
-    const r = scoreFor(zone);
-    const rows = fields.map((f) =>
-      el("div", { class: "ssm-row" }, [
-        el("span", { class: "ssm-row-label" }, [f.label || f.key]),
-        el("span", { class: "ssm-row-value" }, [
-          formatField(zone.ind ? zone.ind[f.key] : null, f),
-        ]),
-      ]),
-    );
-    const scoreLine =
-      r && r.status === E.SCORE_STATUS.AVAILABLE
-        ? el("div", { class: "ssm-score" }, [`${label("index", "Índice")}: ${r.score}/100`])
-        : null;
-    const title = el("h2", { tabindex: "-1" }, [zone.name || label("zoneFallback", "Zona")]);
-    panel.replaceChildren();
-    panel.appendChild(title);
-    if (scoreLine) panel.appendChild(scoreLine);
-    renderSlot(panel, "detail.beforeFields", { zone, score: r });
-    rows.forEach((row) => panel.appendChild(row));
-    renderSlot(panel, "detail.afterFields", { zone, score: r });
-    panel.classList.add("open");
-    panel.setAttribute("aria-hidden", "false");
-    if (focusDetail && typeof title.focus === "function") title.focus();
+  function scoreTextFor(zone) {
+    const result = scoreFor(zone);
+    return result?.status === E.SCORE_STATUS.AVAILABLE
+      ? `${label("index", "Índice")}: ${result.score}/100`
+      : null;
   }
 
-  function focusZone(zone) {
+  function refreshSelectedDetail() {
+    if (!state.selected || !state.detailController) return;
+    state.detailController.open({
+      zone: state.selected,
+      score: scoreFor(state.selected),
+      scoreText: scoreTextFor(state.selected),
+      focus: false,
+      preserveTrigger: true,
+    });
+  }
+
+  function selectZone(zone, focusDetail, trigger) {
+    state.selected = zone;
+    state.mapLayers?.setSelection(zone);
+    state.detailController?.open({
+      zone,
+      score: scoreFor(zone),
+      scoreText: scoreTextFor(zone),
+      focus: focusDetail === true,
+      trigger: trigger || null,
+    });
+  }
+
+  function focusZone(zone, trigger) {
     const search = ui.search || {};
     state.mapLayers?.focusZone(zone, {
       maxZoom: search.maxZoom || 12,
       padding: [20, 20],
     });
-    selectZone(zone, true);
+    selectZone(zone, true, trigger);
   }
 
   function buildSearch() {
@@ -287,6 +288,8 @@
       },
       onkeydown: (event) => {
         if (event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
         state.query = "";
         input.value = "";
         updateResults();
@@ -325,7 +328,9 @@
         resultsList.appendChild(el("button", {
           type: "button",
           class: "tesela-search-result",
-          onclick: () => focusZone(zone),
+          "aria-controls": mounts.detail,
+          "aria-expanded": state.selected?.key === zone.key ? "true" : "false",
+          onclick: (event) => focusZone(zone, event.currentTarget || event.target),
         }, [zone.name || label("zoneFallback", "Zona")]));
       }
     }
@@ -335,7 +340,7 @@
       role: "search",
       onsubmit: (event) => {
         event.preventDefault();
-        if (currentResults[0]) focusZone(currentResults[0]);
+        if (currentResults[0]) focusZone(currentResults[0], input);
       },
     }, [
       el("label", { class: "tesela-visually-hidden", for: inputId }, [
@@ -378,6 +383,11 @@
       ]),
     );
     renderSlot(rail, "sidebar.afterStatus");
+
+    if (typeof UI.renderMethodology === "function") {
+      const methodology = UI.renderMethodology(document, CONFIG.methodology);
+      if (methodology) rail.appendChild(methodology);
+    }
 
     const search = buildSearch();
     if (search) rail.appendChild(search);
@@ -491,6 +501,33 @@
       return;
     }
     state.zones = buildZones(bundle);
+    if (typeof UI.createDetailController !== "function") {
+      showStartupError([label("missingDetail", "Falta el componente de detalle de Tesela.")]);
+      return;
+    }
+    if (!mount("detail") || (CONFIG.detail?.glossary?.enabled !== false
+      && CONFIG.detail?.glossary && !mount("glossary"))) {
+      showStartupError([label("missingDetailMount", "Falta un contenedor de detalle o glosario.")]);
+      return;
+    }
+    state.detailController = UI.createDetailController({
+      document,
+      detailElement: mount("detail"),
+      glossaryElement: mount("glossary"),
+      detailConfig: {
+        ...(CONFIG.detail || {}),
+        fields: CONFIG.detail?.fields || CONFIG.indicators || [],
+      },
+      formatValue: formatField,
+      labels: { zoneFallback: label("zoneFallback", "Zona") },
+      beforeFields: (container, payload) => renderSlot(container, "detail.beforeFields", payload),
+      afterFields: (container, payload) => renderSlot(container, "detail.afterFields", payload),
+      onClose: () => {
+        state.selected = null;
+        state.mapLayers?.setSelection(null);
+        if (typeof state.refreshSearch === "function") state.refreshSearch();
+      },
+    });
     if (CONFIG.branding?.accent && document.documentElement?.style) {
       document.documentElement.style.setProperty("--tesela-accent", CONFIG.branding.accent);
     }
@@ -537,11 +574,13 @@
   }
 
   function destroy() {
+    state.detailController?.destroy();
     state.mapLayers?.destroy();
     state.baseLayer?.remove?.();
     state.map?.off?.();
     state.map?.remove?.();
     state.mapLayers = null;
+    state.detailController = null;
     state.baseLayer = null;
     state.map = null;
   }

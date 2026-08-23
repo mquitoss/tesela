@@ -21,7 +21,12 @@
         searchResultCount: "{count} coincidencias",
       },
     },
-    mounts: { rail: "map-controls", map: "map", detail: "map-detail" },
+    mounts: {
+      rail: "map-controls",
+      map: "map",
+      detail: "map-detail",
+      glossary: "map-glossary",
+    },
     map: {
       center: [41.5, 2],
       zoom: 8,
@@ -41,7 +46,22 @@
       noData: { fillColor: "#2a2f33", color: "#3a4046" },
     },
     scoring: { keyField: "id", factors: [], presets: [] },
-    detail: { fields: [{ key: "value", label: "Valor", format: "number" }] },
+    detail: {
+      closeLabel: "Cerrar detalle",
+      glossary: {
+        enabled: true,
+        triggerLabel: "Guía",
+        title: "Definiciones",
+        closeLabel: "Cerrar guía",
+      },
+      fields: [{
+        key: "value",
+        label: "Valor",
+        format: "number",
+        section: "Indicadores",
+        help: "Descripción del indicador proporcionada por el proyecto host.",
+      }],
+    },
     extensions: { slots: {} },
   };
   root.TESELA_CONFIG = root.SSM_CONFIG = config;
