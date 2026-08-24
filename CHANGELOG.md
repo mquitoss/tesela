@@ -14,6 +14,9 @@
 - Gestor Leaflet con reconstrucción y cleanup idempotentes.
 - Detalle seccionado, avisos, glosario derivado y metodología declarativa.
 - Cierre accesible con `inert`, estados ARIA, Escape y restauración de foco.
+- Runtime de providers con AbortController, protección contra respuestas
+  obsoletas, estados explícitos y caché LRU limitada.
+- Provider reutilizable de Wikimedia Commons con filtros, autoría y licencia.
 
 ### Corregido
 

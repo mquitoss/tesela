@@ -14,7 +14,8 @@ python vendor/tesela/scripts/build_data.py \
 ```
 
 4. Conserva el orden de scripts de `index.html`: `search.js` va después de
-   `join.js`; `map-layers.js` y `detail.js` van después del engine.
+   `join.js`; `providers.js`, `map-layers.js`, `detail.js` y los providers
+   opcionales van antes del adapter y `app.js`.
 5. Abre `index.html` directamente o sirve la carpeta con
    `python -m http.server`; comprueba también búsqueda y detalle mediante
    `file://`.

@@ -288,6 +288,56 @@
         }
       }
     }
+    if (detail.providerCacheSize != null && (
+      !Number.isInteger(detail.providerCacheSize) || detail.providerCacheSize <= 0
+    )) errors.push("detail.providerCacheSize debe ser un entero positivo");
+    if (detail.providers != null && !Array.isArray(detail.providers)) {
+      errors.push("detail.providers debe ser un array");
+    }
+    const providers = Array.isArray(detail.providers) ? detail.providers : [];
+    providers.forEach((provider, index) => {
+      const path = `detail.providers[${index}]`;
+      if (!isObject(provider)) {
+        errors.push(`${path} debe ser un objeto`);
+        return;
+      }
+      if (!isNonEmptyString(provider.id)) errors.push(`${path}.id es obligatorio`);
+      if (provider.enabled != null && typeof provider.enabled !== "boolean") {
+        errors.push(`${path}.enabled debe ser booleano`);
+      }
+      const builtIn = provider.type === "wikimediaCommons";
+      if (!builtIn && typeof provider.load !== "function") {
+        errors.push(`${path} debe definir un type soportado o load`);
+      }
+      if (provider.type != null && !builtIn) errors.push(`${path}.type no está soportado`);
+      for (const key of ["load", "normalize", "attribution", "cacheKey", "renderItem", "subjectFor", "altFor"]) {
+        if (provider[key] != null && typeof provider[key] !== "function") {
+          errors.push(`${path}.${key} debe ser una función`);
+        }
+      }
+      if (!builtIn && typeof provider.renderItem !== "function") {
+        errors.push(`${path}.renderItem es obligatorio para providers visuales`);
+      }
+      for (const key of ["limit", "searchLimit", "radius", "thumbnailWidth"]) {
+        if (provider[key] != null && (!Number.isFinite(provider[key]) || provider[key] <= 0)) {
+          errors.push(`${path}.${key} debe ser positivo`);
+        }
+      }
+      for (const key of [
+        "label", "loadingLabel", "emptyLabel", "errorLabel", "note", "querySuffix",
+        "unknownAuthor", "unknownLicense", "latField", "lonField",
+      ]) {
+        if (provider[key] != null && !isNonEmptyString(provider[key])) {
+          errors.push(`${path}.${key} debe ser texto no vacío`);
+        }
+      }
+      if (provider.endpoint != null && (
+        !isNonEmptyString(provider.endpoint) || !/^https:\/\//i.test(provider.endpoint)
+      )) errors.push(`${path}.endpoint debe ser una URL HTTPS`);
+    });
+    for (const id of duplicateValues(providers, "id")) {
+      errors.push(`detail.providers contiene el id duplicado "${id}"`);
+    }
   }
 
   function validateMethodology(methodology, errors) {

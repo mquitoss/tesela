@@ -52,8 +52,10 @@ Tesela. Debe conservarse el orden declarado en `tesela.assets.json`.
 <script src="vendor/tesela/src/engine/bundle.js"></script>
 <script src="vendor/tesela/src/engine/config.js"></script>
 <script src="vendor/tesela/src/engine/extensions.js"></script>
+<script src="vendor/tesela/src/engine/providers.js"></script>
 <script src="vendor/tesela/src/ui/map-layers.js"></script>
 <script src="vendor/tesela/src/ui/detail.js"></script>
+<script src="vendor/tesela/src/providers/wikimedia-commons.js"></script>
 <script src="src/domain.js"></script>
 <script src="vendor/tesela/src/app.js"></script>
 ```

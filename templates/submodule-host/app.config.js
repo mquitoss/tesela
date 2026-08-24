@@ -54,6 +54,7 @@
         title: "Definiciones",
         closeLabel: "Cerrar guía",
       },
+      providers: [],
       fields: [{
         key: "value",
         label: "Valor",

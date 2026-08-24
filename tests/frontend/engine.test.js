@@ -147,7 +147,16 @@ function fakeBrowser() {
     },
   };
   const context = browserContext();
-  Object.assign(context, { window: context, document, L, console });
+  Object.assign(context, {
+    window: context,
+    document,
+    L,
+    console,
+    AbortController,
+    URL,
+    URLSearchParams,
+    fetch: async () => ({ ok: true, json: async () => ({ query: { pages: {} } }) }),
+  });
   return { context, elements, styles };
 }
 
@@ -203,7 +212,8 @@ describe("shell zero-build", () => {
       "src/engine/namespace.js", "app.config.js", "data/bundle.js",
       "src/engine/format.js", "src/engine/geo.js", "src/engine/join.js", "src/engine/search.js",
       "src/engine/scoring.js", "src/engine/color.js", "src/engine/bundle.js",
-      "src/engine/config.js", "src/engine/extensions.js", "src/ui/map-layers.js", "src/ui/detail.js", "src/adapters/domain.js",
+      "src/engine/config.js", "src/engine/extensions.js", "src/engine/providers.js",
+      "src/ui/map-layers.js", "src/ui/detail.js", "src/providers/wikimedia-commons.js", "src/adapters/domain.js",
       "src/app.js",
     ]) runBrowserScript(context, path);
 
@@ -227,7 +237,8 @@ describe("shell zero-build", () => {
     for (const path of [
       "src/engine/format.js", "src/engine/geo.js", "src/engine/join.js", "src/engine/search.js",
       "src/engine/scoring.js", "src/engine/color.js", "src/engine/bundle.js",
-      "src/engine/config.js", "src/engine/extensions.js", "src/ui/map-layers.js", "src/ui/detail.js", "src/adapters/domain.js",
+      "src/engine/config.js", "src/engine/extensions.js", "src/engine/providers.js",
+      "src/ui/map-layers.js", "src/ui/detail.js", "src/providers/wikimedia-commons.js", "src/adapters/domain.js",
       "src/app.js",
     ]) runBrowserScript(context, path);
     expect(context.Tesela.app.getState().zones).toBe(1);
@@ -285,6 +296,8 @@ describe("distribución como submódulo", () => {
       .toBeGreaterThan(html.indexOf('src="src/engine/join.js"'));
     expect(html).toContain('src="src/ui/map-layers.js"');
     expect(html).toContain('src="src/ui/detail.js"');
+    expect(html).toContain('src="src/engine/providers.js"');
+    expect(html).toContain('src="src/providers/wikimedia-commons.js"');
     expect(html).toContain('id="ssm-glossary"');
     expect(html).not.toContain("<style>");
     expect(existsSync(resolve(process.cwd(), "templates/submodule-host/index.html"))).toBe(true);

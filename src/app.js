@@ -16,6 +16,7 @@
   const E = Tesela.engine || {};
   const A = Tesela.adapters || {};
   const UI = Tesela.ui || {};
+  const Providers = Tesela.providers || {};
   const CONFIG = runtime.resolveConfig
     ? runtime.resolveConfig(window)
     : (window.TESELA_CONFIG || window.SSM_CONFIG || {});
@@ -36,6 +37,7 @@
     query: "",
     mapLayers: null,
     detailController: null,
+    providerRuntime: null,
     baseLayer: null,
     refreshSearch: null,
     map: null,
@@ -229,6 +231,27 @@
       : null;
   }
 
+  function providerContext(zone) {
+    return {
+      zone,
+      point: E.representativePoint(zone.feature),
+      config: CONFIG,
+    };
+  }
+
+  function resolveDetailProviders() {
+    const resolved = [];
+    for (const descriptor of CONFIG.detail?.providers || []) {
+      if (descriptor?.enabled === false) continue;
+      if (typeof descriptor?.load === "function") resolved.push(descriptor);
+      else if (descriptor?.type === "wikimediaCommons"
+        && typeof Providers.createWikimediaCommonsProvider === "function") {
+        resolved.push(Providers.createWikimediaCommonsProvider(descriptor));
+      }
+    }
+    return resolved;
+  }
+
   function refreshSelectedDetail() {
     if (!state.selected || !state.detailController) return;
     state.detailController.open({
@@ -237,6 +260,7 @@
       scoreText: scoreTextFor(state.selected),
       focus: false,
       preserveTrigger: true,
+      ...providerContext(state.selected),
     });
   }
 
@@ -249,6 +273,7 @@
       scoreText: scoreTextFor(zone),
       focus: focusDetail === true,
       trigger: trigger || null,
+      ...providerContext(zone),
     });
   }
 
@@ -510,6 +535,9 @@
       showStartupError([label("missingDetailMount", "Falta un contenedor de detalle o glosario.")]);
       return;
     }
+    state.providerRuntime = typeof E.createProviderRuntime === "function"
+      ? E.createProviderRuntime({ cacheSize: CONFIG.detail?.providerCacheSize || 32 })
+      : null;
     state.detailController = UI.createDetailController({
       document,
       detailElement: mount("detail"),
@@ -520,6 +548,8 @@
       },
       formatValue: formatField,
       labels: { zoneFallback: label("zoneFallback", "Zona") },
+      providers: resolveDetailProviders(),
+      providerRuntime: state.providerRuntime,
       beforeFields: (container, payload) => renderSlot(container, "detail.beforeFields", payload),
       afterFields: (container, payload) => renderSlot(container, "detail.afterFields", payload),
       onClose: () => {
@@ -575,12 +605,14 @@
 
   function destroy() {
     state.detailController?.destroy();
+    state.providerRuntime?.destroy();
     state.mapLayers?.destroy();
     state.baseLayer?.remove?.();
     state.map?.off?.();
     state.map?.remove?.();
     state.mapLayers = null;
     state.detailController = null;
+    state.providerRuntime = null;
     state.baseLayer = null;
     state.map = null;
   }

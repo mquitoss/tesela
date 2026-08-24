@@ -17,8 +17,10 @@
       "src/engine/bundle.js",
       "src/engine/config.js",
       "src/engine/extensions.js",
+      "src/engine/providers.js",
       "src/ui/map-layers.js",
-      "src/ui/detail.js"
+      "src/ui/detail.js",
+      "src/providers/wikimedia-commons.js"
     ],
     "defaultAdapter": "src/adapters/domain.js",
     "entrypoint": "src/app.js"

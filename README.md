@@ -90,6 +90,11 @@ mapa.
 `detail.notices` y `methodology` permiten añadir avisos, fuentes y proceso usando
 solo contenido textual del proyecto consumidor.
 
+`detail.providers` añade contenido asíncrono sin convertir el mapa en una
+aplicación con backend. El runtime cancela peticiones obsoletas, limita la caché y
+aísla errores. Tesela incluye un provider opcional de Wikimedia Commons con
+autoría y licencia visibles.
+
 ## Slots de UI
 
 La primera API de extensión incluye:
@@ -168,6 +173,8 @@ conservan durante la serie `0.x`. Consulta
 | `src/ui/tesela.css` | Estilos públicos reutilizables |
 | `src/ui/map-layers.js` | Capas, selección, etiquetas y ciclo de vida Leaflet |
 | `src/ui/detail.js` | Detalle, glosario, metodología y gestión de foco |
+| `src/engine/providers.js` | Cancelación, estados y caché LRU asíncrona |
+| `src/providers/wikimedia-commons.js` | Provider fotográfico de referencia |
 | `src/engine/*.js` | Motor agnóstico |
 | `src/app.js` | Shell Leaflet/DOM |
 | `src/adapters/domain.js` | Hooks y slots de dominio |

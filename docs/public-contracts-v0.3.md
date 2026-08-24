@@ -131,6 +131,7 @@ es idempotente.
   normalize(response),
   attribution(item),
   cacheKey?(context),
+  renderItem?(document, item, context),
 }
 ```
 
@@ -140,6 +141,36 @@ es idempotente.
 - Abortos no son errores visibles. Error, vacío y loading son estados distintos.
 - El runtime usa un token además de `AbortController` para descartar respuestas
   obsoletas y limita el tamaño de la caché.
+- `Tesela.engine.createProviderRuntime` ofrece `run`, `cancel`, `cancelAll`,
+  `clearCache` y `destroy`. La caché usa LRU y nunca conserva errores.
+- Los providers visuales aportan `renderItem`; cada item debe ser un nodo creado
+  de forma síncrona con DOM seguro. Los estados `loading`, `ready`, `empty` y
+  `error` se representan por separado y no bloquean los campos del detalle. Sus
+  secciones aparecen después de `detail.beforeFields` y antes de los campos.
+
+El provider incluido de Wikimedia Commons se configura sin callbacks:
+
+```js
+detail: {
+  providerCacheSize: 24,
+  providers: [{
+    id: "nearby-images",
+    type: "wikimediaCommons",
+    limit: 3,
+    searchLimit: 16,
+    radius: 5000,
+    querySuffix: "Optional place context",
+    latField: "optional_lat_field",
+    lonField: "optional_lon_field",
+  }],
+}
+```
+
+Si no se indican campos de coordenadas usa el punto representativo de la zona.
+La búsqueda textual no añade ninguna región implícita. El provider filtra mapas,
+logos, banderas, formatos no fotográficos y duplicados; conserva autor, licencia
+y enlaces HTTPS al original. Wikimedia requiere conexión y CORS, pero sus fallos
+solo cambian el estado de su sección.
 
 ## Campos de detalle
 

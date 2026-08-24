@@ -78,6 +78,8 @@
     const config = options.detailConfig || {};
     const fields = Array.isArray(config.fields) ? config.fields : [];
     const glossaryConfig = config.glossary || {};
+    const providers = Array.isArray(options.providers) ? options.providers : [];
+    const providerRuntime = options.providerRuntime;
     const detailId = detail?.id || "ssm-detail";
     const glossaryId = glossaryElement?.id || "ssm-glossary";
     let detailOpen = false;
@@ -85,6 +87,54 @@
     let detailTrigger = null;
     let glossaryTrigger = null;
     let currentContext = null;
+
+    function renderProviderState(provider, body, state, context) {
+      if (body.isConnected === false) return;
+      body.replaceChildren();
+      const ui = provider.ui || {};
+      if (state.status === "loading") {
+        body.appendChild(node(document, "p", { class: "tesela-provider-status" }, [
+          ui.loading || "Loading…",
+        ]));
+        return;
+      }
+      if (state.status === "empty" || state.status === "error") {
+        body.appendChild(node(document, "p", { class: "tesela-provider-status" }, [
+          state.status === "empty" ? (ui.empty || "No items found.") : (ui.error || "Content could not be loaded."),
+        ]));
+        return;
+      }
+      const grid = node(document, "div", { class: "tesela-provider-items" }, []);
+      for (const item of state.data) {
+        try {
+          const rendered = provider.renderItem?.(document, item, context);
+          if (rendered) grid.appendChild(rendered);
+        } catch (error) {
+          console.error(`[Tesela] Error al renderizar provider ${provider.id}`, error);
+        }
+      }
+      if (grid.children.length) body.appendChild(grid);
+      else body.appendChild(node(document, "p", { class: "tesela-provider-status" }, [ui.empty || "No items found."]));
+      if (ui.note && grid.children.length) {
+        body.appendChild(node(document, "p", { class: "tesela-provider-note" }, [ui.note]));
+      }
+    }
+
+    function renderProviders(container, context) {
+      if (!providerRuntime) return;
+      providerRuntime.cancelAll();
+      for (const provider of providers) {
+        const section = node(document, "section", { class: "tesela-provider" }, []);
+        if (provider.ui?.label) section.appendChild(node(document, "h3", null, [provider.ui.label]));
+        const body = node(document, "div", { class: "tesela-provider-body", "aria-live": "polite" }, []);
+        section.appendChild(body);
+        container.appendChild(section);
+        providerRuntime.run(provider, context, {
+          channel: provider.id,
+          onState: (state) => renderProviderState(provider, body, state, context),
+        });
+      }
+    }
 
     function closeGlossary({ restoreFocus = true } = {}) {
       if (!glossaryOpen) return;
@@ -132,6 +182,7 @@
 
     function close({ restoreFocus = true } = {}) {
       if (!detailOpen) return;
+      providerRuntime?.cancelAll();
       closeGlossary({ restoreFocus: false });
       detailOpen = false;
       setOpen(detail, false);
@@ -189,6 +240,7 @@
         detail.appendChild(node(document, "div", { class: "ssm-score" }, [payload.scoreText]));
       }
       options.beforeFields?.(detail, payload);
+      renderProviders(detail, payload);
       appendFieldGroups(
         document,
         detail,
@@ -215,6 +267,7 @@
 
     function destroy() {
       document.removeEventListener?.("keydown", onKeydown);
+      providerRuntime?.cancelAll();
       close({ restoreFocus: false });
       closeGlossary({ restoreFocus: false });
     }

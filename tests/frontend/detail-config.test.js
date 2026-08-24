@@ -74,4 +74,48 @@ describe("configuración de detalle y metodología", () => {
     expect(errors).toMatch(/steps debe ser un array/);
     expect(errors).toMatch(/URL HTTPS/);
   });
+
+  it("valida providers built-in y extensiones visuales", () => {
+    const valid = validateConfig(base({
+      detail: {
+        providerCacheSize: 8,
+        providers: [
+          { id: "commons", type: "wikimediaCommons", limit: 3 },
+          {
+            id: "custom",
+            load: async () => [],
+            normalize: (value) => value,
+            renderItem: () => null,
+          },
+        ],
+        fields: [],
+      },
+    }));
+    expect(valid).toEqual({ valid: true, errors: [] });
+
+    const invalid = validateConfig(base({
+      detail: {
+        providerCacheSize: 0,
+        providers: [
+          { id: "same", type: "unknown" },
+          {
+            id: "same",
+            load: async () => [],
+            endpoint: "http://example.test/api",
+            limit: -1,
+            loadingLabel: "",
+          },
+        ],
+        fields: [],
+      },
+    }));
+    const errors = invalid.errors.join(" ");
+    expect(errors).toMatch(/providerCacheSize/);
+    expect(errors).toMatch(/type no está soportado/);
+    expect(errors).toMatch(/renderItem es obligatorio/);
+    expect(errors).toMatch(/endpoint debe ser una URL HTTPS/);
+    expect(errors).toMatch(/limit debe ser positivo/);
+    expect(errors).toMatch(/loadingLabel debe ser texto no vacío/);
+    expect(errors).toMatch(/id duplicado "same"/);
+  });
 });

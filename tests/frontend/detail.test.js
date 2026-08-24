@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const { createDetailController, renderMethodology } = require("../../src/ui/detail.js");
+const { createProviderRuntime } = require("../../src/engine/providers.js");
 
 function fakeDocument() {
   const listeners = new Map();
@@ -146,6 +147,42 @@ describe("detail controller", () => {
     context.controller.destroy();
     expect(context.document.listeners.has("keydown")).toBe(false);
     expect(() => context.controller.destroy()).not.toThrow();
+  });
+
+  it("renderiza estados y elementos de providers asíncronos", async () => {
+    const document = fakeDocument();
+    const detail = document.createElement("aside");
+    const runtime = createProviderRuntime();
+    const provider = {
+      id: "media",
+      ui: {
+        label: "Media",
+        loading: "Loading media…",
+        empty: "No media.",
+        error: "Media failed.",
+        note: "Provider note.",
+      },
+      cacheKey: (context) => context.zone.key,
+      load: async () => [{ title: "Image" }],
+      renderItem: (doc, item) => {
+        const element = doc.createElement("figure");
+        element.appendChild(doc.createTextNode(item.title));
+        return element;
+      },
+    };
+    const controller = createDetailController({
+      document,
+      detailElement: detail,
+      detailConfig: { fields: [] },
+      formatValue: String,
+      providers: [provider],
+      providerRuntime: runtime,
+    });
+    controller.open({ zone: { key: "a", name: "Zone", ind: {} } });
+    expect(text(detail)).toContain("Loading media…");
+    await vi.waitFor(() => expect(text(detail)).toContain("ImageProvider note."));
+    controller.close();
+    expect(detail.getAttribute("aria-hidden")).toBe("true");
   });
 });
 

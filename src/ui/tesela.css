@@ -251,6 +251,29 @@ body.tesela-layout {
   color: var(--tesela-muted);
   font-size: 11px;
 }
+.tesela-provider { margin: 16px 0; }
+.tesela-provider > h3 {
+  margin: 0 0 7px;
+  color: var(--tesela-accent);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.tesela-provider-items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.tesela-media-card { min-width: 0; margin: 0; }
+.tesela-media-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 7px;
+  background: var(--tesela-line);
+}
+.tesela-media-card figcaption { display: grid; gap: 2px; padding-top: 4px; font-size: 10px; }
+.tesela-media-card figcaption strong { overflow-wrap: anywhere; }
+.tesela-media-card figcaption a { color: var(--tesela-muted); overflow-wrap: anywhere; }
+.tesela-provider-status,
+.tesela-provider-note { margin: 5px 0; color: var(--tesela-muted); font-size: 11px; }
 .tesela-glossary {
   position: fixed;
   z-index: 1100;

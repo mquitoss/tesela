@@ -182,6 +182,22 @@
       notices: [
         "Los valores del ejemplo son descriptivos y dependen de la cobertura del dataset publicado.",
       ],
+      providerCacheSize: 24,
+      providers: [{
+        id: "nearby-images",
+        type: "wikimediaCommons",
+        label: "Imágenes cercanas",
+        limit: 3,
+        searchLimit: 16,
+        radius: 5000,
+        querySuffix: "Barcelona",
+        loadingLabel: "Buscando imágenes cercanas…",
+        emptyLabel: "No se han encontrado imágenes reutilizables.",
+        errorLabel: "No se han podido cargar las imágenes.",
+        note: "Imágenes geolocalizadas proporcionadas por Wikimedia Commons.",
+        unknownAuthor: "Autor no indicado",
+        unknownLicense: "Consulta la licencia en Commons",
+      }],
       fields: [
         {
           section: "Demografía",
