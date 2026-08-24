@@ -17,6 +17,10 @@
 - Runtime de providers con AbortController, protección contra respuestas
   obsoletas, estados explícitos y caché LRU limitada.
 - Provider reutilizable de Wikimedia Commons con filtros, autoría y licencia.
+- Pipeline compacto mediante `--no-attach-indicators` o configuración del Source,
+  conservando el comportamiento 0.2 por defecto.
+- Build estático y workflow de referencia para hosts con submódulo, allowlist de
+  assets, límite de tamaño y fallo temprano.
 
 ### Corregido
 

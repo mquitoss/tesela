@@ -30,7 +30,11 @@ class Source(Protocol):
       HUECOS de dominio se representan como ``None``, NUNCA se fabrican valores.
     - ``geometry()`` devuelve un ``FeatureCollection`` GeoJSON cuyas features llevan
       esa misma clave en ``properties`` (p. ej. ``BARRI``).
+    - ``attach_indicators`` es opcional. Si es ``False``, el bundle mantiene los
+      indicadores separados de la geometría. Si falta, se conserva el modo 0.2.
     """
+
+    attach_indicators: bool
 
     def geometry(self) -> dict:
         """FeatureCollection GeoJSON (ya con las propiedades relevantes)."""

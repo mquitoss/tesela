@@ -4,14 +4,15 @@ Orquesta un adaptador de fuente (``scripts/sources/<nombre>.py``) y emite
 ``data/bundle.js`` con ``window.TESELA_DATA = {geo, indicators, meta}`` que el
 frontend zero-build carga por ``<script src>``. El pipeline es AGNÓSTICO al
 dominio: la geometría y los indicadores los produce el Source; aquí solo se
-redondean coordenadas, se adjuntan los indicadores a las features (tooltips ricos)
+redondean coordenadas, se adjuntan opcionalmente los indicadores a las features
 y se serializa el bundle.
 
 Uso:
     python scripts/build_data.py --source example_source
     python scripts/build_data.py --source example_source --data-dir data --namespace TESELA_DATA
     python vendor/tesela/scripts/build_data.py --source-path scripts/source.py \
-        --project-root . --output data/bundle.js --join-property ID --key-field id
+        --project-root . --output data/bundle.js --join-property ID --key-field id \
+        --no-attach-indicators
 
 Las funciones de transformación son PURAS (sin IO/red) para poder testearlas; el
 IO (fetch del Source, escritura del bundle) vive en ``main``/``construir``.
@@ -34,7 +35,7 @@ from typing import Any
 # Helpers PUROS (espejo de src/engine/join.js::normalizeName y de la limpieza geo)
 # ---------------------------------------------------------------------------
 
-_REGEX_ARTICLE = re.compile(r"^(?:els|les|el|la|l')\s*")
+_REGEX_ARTICLE = re.compile(r"^(?:(?:els|les|el|la)(?:\s+|$)|l'\s*)")
 _REGEX_ESPACIOS = re.compile(r"\s+")
 _JS_IDENTIFIER = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
 
@@ -60,6 +61,8 @@ def round_coords(geojson: dict, decimals: int = 6) -> dict:
     """
 
     def _round(coords: Any) -> Any:
+        if isinstance(coords, bool):
+            return coords
         if isinstance(coords, (int, float)):
             return round(float(coords), decimals)
         if isinstance(coords, list):
@@ -98,6 +101,16 @@ def attach_indicators_to_geometry(
                     props.setdefault(k, v)
         features.append({**feat, "properties": props})
     return {**geojson, "features": features}
+
+
+def resolve_attach_indicators(source: Any, requested: bool | None = None) -> bool:
+    """Resuelve el modo compacto conservando el comportamiento de Tesela 0.2."""
+    if requested is not None:
+        return requested
+    declared = getattr(source, "attach_indicators", True)
+    if not isinstance(declared, bool):
+        raise TypeError("Source.attach_indicators debe ser booleano")
+    return declared
 
 
 def validate_source_data(
@@ -243,6 +256,7 @@ def construir(
     source_path: Path | None = None,
     project_root: Path | None = None,
     output: Path | None = None,
+    attach_indicators: bool | None = None,
 ) -> dict:
     """Construye el bundle desde un Source y lo escribe en ``data_dir/bundle.js``.
 
@@ -258,7 +272,8 @@ def construir(
     validate_source_data(geo, indicators, join_property, key_field)
 
     geo = round_coords(geo, decimals)
-    geo = attach_indicators_to_geometry(geo, indicators, join_property, key_field)
+    if resolve_attach_indicators(source, attach_indicators):
+        geo = attach_indicators_to_geometry(geo, indicators, join_property, key_field)
     source_meta = source.metadata() if callable(getattr(source, "metadata", None)) else None
     source_label = source_path.stem if source_path is not None else source_name
     meta = build_meta(
@@ -289,6 +304,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--key-field", default="codi", help="campo clave en los indicadores")
     parser.add_argument("--decimals", type=int, default=6, help="decimales de las coordenadas")
     parser.add_argument("--namespace", default="TESELA_DATA", help="global del bundle (window.<ns>)")
+    parser.add_argument(
+        "--no-attach-indicators",
+        dest="attach_indicators",
+        action="store_false",
+        default=None,
+        help="no copia indicadores dentro de feature.properties",
+    )
     args = parser.parse_args(argv)
 
     # Permitir `import sources.<name>` ejecutando desde la raíz del repo.
@@ -304,6 +326,7 @@ def main(argv: list[str] | None = None) -> int:
         source_path=args.source_path,
         project_root=args.project_root,
         output=args.output,
+        attach_indicators=args.attach_indicators,
     )
     meta = bundle["meta"]
     print(

@@ -2,6 +2,8 @@ from pathlib import Path
 
 
 class Source:
+    attach_indicators = False
+
     def __init__(self, project_root: Path) -> None:
         self.project_root = project_root
 

@@ -20,6 +20,7 @@ def test_normalize_name_mirrors_frontend():
     assert build_data.normalize_name("el Raval") == "raval"
     assert build_data.normalize_name("Gràcia") == "gracia"
     assert build_data.normalize_name("la  Barceloneta") == "barceloneta"
+    assert build_data.normalize_name("lake") == "lake"
     assert build_data.normalize_name(None) == ""
 
 
@@ -179,6 +180,14 @@ class FakeSource:
         return {"license": "CC0", "reference_period": "2025"}
 
 
+class CompactSource(FakeSource):
+    attach_indicators = False
+
+
+class InvalidAttachSource(FakeSource):
+    attach_indicators = "no"
+
+
 def test_construir_emits_valid_bundle(tmp_path, monkeypatch):
     monkeypatch.setattr(build_data, "load_source", lambda name, **kwargs: FakeSource())
     bundle = build_data.construir("fake", tmp_path)
@@ -188,3 +197,39 @@ def test_construir_emits_valid_bundle(tmp_path, monkeypatch):
     assert bundle["meta"]["license"] == "CC0"
     # La densidad llega a las properties de la feature (tooltip rico).
     assert bundle["geo"]["features"][0]["properties"]["densitat"] == 50000.0
+
+
+def test_source_can_keep_indicators_separate(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_data, "load_source", lambda name, **kwargs: CompactSource())
+    bundle = build_data.construir("compact", tmp_path)
+    assert bundle["geo"]["features"][0]["properties"] == {
+        "BARRI": 1,
+        "NOM": "el Raval",
+        "AREA": 1_000_000.0,
+    }
+    assert bundle["indicators"][0]["densitat"] == 50000.0
+
+
+def test_cli_option_overrides_legacy_attachment(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_data, "load_source", lambda name, **kwargs: FakeSource())
+    assert build_data.main([
+        "--project-root", str(tmp_path),
+        "--output", "compact.js",
+        "--no-attach-indicators",
+    ]) == 0
+    first_line = (tmp_path / "compact.js").read_text(encoding="utf-8").splitlines()[0]
+    bundle = json.loads(first_line.split(" = ", 1)[1].removesuffix(";"))
+    assert "densitat" not in bundle["geo"]["features"][0]["properties"]
+
+
+def test_invalid_source_attachment_option_is_rejected(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_data, "load_source", lambda name, **kwargs: InvalidAttachSource())
+    with pytest.raises(TypeError, match="attach_indicators debe ser booleano"):
+        build_data.construir("invalid", tmp_path)
+
+
+def test_bundle_build_is_byte_reproducible(tmp_path, monkeypatch):
+    monkeypatch.setattr(build_data, "load_source", lambda name, **kwargs: CompactSource())
+    build_data.construir("compact", tmp_path, output=Path("first.js"), project_root=tmp_path)
+    build_data.construir("compact", tmp_path, output=Path("second.js"), project_root=tmp_path)
+    assert (tmp_path / "first.js").read_bytes() == (tmp_path / "second.js").read_bytes()

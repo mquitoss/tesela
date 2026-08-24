@@ -53,6 +53,8 @@ def _clean_feature_props(props: dict) -> dict:
 class Source:
     """Implementa el contrato ``scripts/sources/base.Source``."""
 
+    attach_indicators = True
+
     def __init__(self) -> None:
         self._geo: dict | None = None
 

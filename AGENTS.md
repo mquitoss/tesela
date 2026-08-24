@@ -94,6 +94,10 @@ Si Tesela está montado como submódulo, el Source debe vivir en el host y el bu
 debe usar `--source-path`, `--project-root` y `--output`. Nunca escribas datos o
 configuración de dominio dentro de `vendor/tesela`.
 
+Declara `attach_indicators = False` o usa `--no-attach-indicators` cuando el
+runtime haga el join y no necesites duplicar todos los indicadores dentro de las
+geometrías. Inicializa siempre el submódulo antes del build estático.
+
 ## Checklist
 
 - [ ] La configuración valida sin errores.

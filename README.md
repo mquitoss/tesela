@@ -138,6 +138,8 @@ class Source:
 
     def metadata(self) -> dict:  # opcional
         ...
+
+    attach_indicators = False  # opcional; evita duplicar datos en la geometría
 ```
 
 El pipeline rechaza claves ausentes o duplicadas, indicadores sin geometría y
@@ -147,6 +149,11 @@ namespaces JavaScript inseguros. El bundle nuevo publica:
 window.TESELA_DATA = { geo, indicators, meta };
 window.SSM_DATA = window.TESELA_DATA; // compatibilidad 0.x
 ```
+
+El comportamiento compatible adjunta indicadores si el Source no declara la
+opción. Para bundles compactos usa `attach_indicators = False` o
+`--no-attach-indicators`. Dos builds con las mismas entradas producen los mismos
+bytes; no se añaden timestamps automáticos.
 
 ## Compatibilidad con Self Service Map
 

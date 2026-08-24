@@ -1,5 +1,8 @@
 {
   "version": "0.2.0",
+  "limits": {
+    "maxAssetBytes": 26214400
+  },
   "styles": [
     "src/ui/tesela.css"
   ],

@@ -72,7 +72,8 @@ python vendor/tesela/scripts/build_data.py \
   --project-root "$PWD" \
   --output data/bundle.js \
   --join-property ID \
-  --key-field id
+  --key-field id \
+  --no-attach-indicators
 ```
 
 `--source-path` y `--output` relativos se resuelven contra `--project-root`. El
@@ -81,6 +82,35 @@ pipeline nunca necesita escribir dentro de `vendor/tesela`. Si el constructor de
 
 Los argumentos antiguos `--source` y `--data-dir` siguen funcionando para los
 Sources incluidos en Tesela.
+
+Por compatibilidad, los Sources que no declaran ninguna opción siguen adjuntando
+los indicadores dentro de `feature.properties`. Para mantener geometría e
+indicadores separados, usa el flag anterior o declara:
+
+```python
+class Source:
+    attach_indicators = False
+```
+
+## Build estático y CI
+
+La plantilla incluye `scripts/build_static_site.js`. Copia solamente config,
+bundle, adapter del host y los assets públicos de `tesela.assets.json`, conservando
+las rutas necesarias para HTTP y `file://`. También aplica el límite de 25 MiB
+por asset y falla claramente si falta el submódulo.
+
+En GitHub Actions usa:
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    submodules: recursive
+    fetch-depth: 0
+```
+
+Cloudflare u otras plataformas deben ejecutar
+`git submodule update --init --recursive` antes de `npm run build` cuando su
+checkout no inicialice submódulos automáticamente.
 
 ## Actualizar Tesela
 

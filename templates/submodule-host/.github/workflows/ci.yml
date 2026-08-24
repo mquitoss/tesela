@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Verify Tesela submodule
+        run: |
+          test -f vendor/tesela/tesela.assets.json || {
+            echo "::error::Tesela submodule is not initialized"
+            exit 1
+          }
+          git submodule status --recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run build
