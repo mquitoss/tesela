@@ -1,6 +1,6 @@
 [project]
 name = "tesela-map"
-version = "0.2.0"
+version = "0.3.0"
 description = "Pipeline de datos de Tesela (Source → bundle.js)."
 requires-python = ">=3.10"
 dependencies = []

@@ -1,6 +1,6 @@
 {
   "name": "tesela-map",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Motor y shell zero-build para crear aplicaciones cartográficas configurables.",
   "type": "commonjs",

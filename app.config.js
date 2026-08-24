@@ -18,7 +18,7 @@
       title: "Tesela",
       subtitle: "Densidad de población · Barcelona (ejemplo)",
       accent: "#5EEAD4",
-      version: "0.2.0",
+      version: "0.3.0",
       dataNamespace: "TESELA_DATA",
     },
 

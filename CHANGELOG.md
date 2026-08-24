@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-24
+
 ### Añadido
 
 - Contratos públicos objetivo y fixtures neutrales de paridad para Tesela 0.3.
