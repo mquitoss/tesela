@@ -42,7 +42,9 @@ distingue expresamente esas APIs de las capacidades ya publicadas en 0.2.
 
 ```bash
 npm install
+npx playwright install chromium
 npm test
+npm run test:e2e
 .venv/bin/python -m pytest
 open index.html
 ```
@@ -206,6 +208,7 @@ Los temas pueden sobrescribir las variables CSS prefijadas `--tesela-bg`,
 
 ```bash
 npm test
+npm run test:e2e
 .venv/bin/python -m pytest
 .venv/bin/ruff check .
 .venv/bin/mypy scripts tests

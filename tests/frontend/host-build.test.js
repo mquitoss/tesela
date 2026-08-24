@@ -41,8 +41,12 @@ describe("distribución estática para hosts", () => {
     const host = scriptSources(resolve(templateRoot, "index.html"))
       .map((path) => path.replace(/^vendor\/tesela\//, ""))
       .filter((path) => expected.includes(path));
+    const e2e = scriptSources(resolve(projectRoot, "tests/e2e/fixture.html"))
+      .map((path) => path.replace(/^\.\.\/\.\.\//, ""))
+      .filter((path) => expected.includes(path));
     expect(main).toEqual(expected);
     expect(host).toEqual(expected.filter((path) => path !== manifest.scripts.defaultAdapter));
+    expect(e2e).toEqual(expected);
     expect(new Set([...manifest.styles, ...expected]).size)
       .toBe(manifest.styles.length + expected.length);
   });
@@ -57,6 +61,9 @@ describe("distribución estática para hosts", () => {
     }
     expect(() => builder.assertSafeRelativePath("../secret")).toThrow(/Unsafe/);
     expect(() => builder.assertSafeRelativePath("/absolute")).toThrow(/Unsafe/);
+    expect(() => builder.validateAsset(projectRoot, "src/app.js", 1)).toThrow(/exceeds/);
+    expect(() => builder.validateAsset(projectRoot, "src", manifest.limits.maxAssetBytes))
+      .toThrow(/not a file/);
   });
 
   it("documenta checkout recursivo en el workflow host", () => {

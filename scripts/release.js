@@ -173,6 +173,7 @@ function pythonExecutable(root) {
 
 function runValidations(root) {
   run("npm", ["test"], { cwd: root });
+  run("npm", ["run", "test:e2e"], { cwd: root });
   run("npm", ["audit", "--audit-level=high"], { cwd: root });
   const python = pythonExecutable(root);
   run(python, ["-m", "pytest"], { cwd: root });

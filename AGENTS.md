@@ -82,6 +82,7 @@ HTML de fuentes externas.
 
 ```bash
 npm test
+npm run test:e2e
 python -m pytest
 python scripts/build_data.py --source <dominio> \
   --join-property <PROPIEDAD_GEO> --key-field <campo_indicador>
@@ -107,6 +108,7 @@ geometrías. Inicializa siempre el submódulo antes del build estático.
 - [ ] La lógica de dominio vive fuera del engine.
 - [ ] Los slots no usan `innerHTML` con contenido externo.
 - [ ] Vitest y pytest están en verde.
+- [ ] Playwright valida HTTP y `file://`.
 - [ ] El ejemplo funciona mediante `file://`.
 
 ## Compatibilidad y APIs experimentales

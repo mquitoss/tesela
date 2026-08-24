@@ -7,10 +7,12 @@
   "scripts": {
     "release": "node scripts/release.js",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "test:watch": "vitest",
     "version:check": "node -e \"const r=require('./scripts/release');const p=require('./package');r.assertVersionSynchronized(process.cwd(),p.version)\""
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "vitest": "^3.2.4"
   }
 }

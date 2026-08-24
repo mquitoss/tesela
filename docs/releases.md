@@ -51,7 +51,9 @@ Requisitos:
 2. tener el working tree limpio;
 3. haber actualizado `main` respecto a su remoto;
 4. no tener ya la rama o el tag de esa versión;
-5. disponer de Node, pytest, Ruff y mypy.
+5. disponer de Node, pytest, Ruff, mypy y Chromium para Playwright.
+
+Instala el navegador una vez mediante `npx playwright install chromium`.
 
 Comprueba primero el plan sin modificar Git:
 
@@ -69,7 +71,7 @@ El comando:
 
 1. crea `release/v0.3.0` desde `main`;
 2. sincroniza versiones y fecha el changelog;
-3. ejecuta Vitest, npm audit, pytest, Ruff y mypy;
+3. ejecuta Vitest, Playwright E2E, npm audit, pytest, Ruff y mypy;
 4. crea el commit `release: v0.3.0`;
 5. crea el tag anotado `v0.3.0`;
 6. vuelve a `main` y hace merge fast-forward de la rama release.

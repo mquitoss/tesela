@@ -21,6 +21,8 @@
   conservando el comportamiento 0.2 por defecto.
 - Build estático y workflow de referencia para hosts con submódulo, allowlist de
   assets, límite de tamaño y fallo temprano.
+- E2E reales en Chromium para búsqueda, selección, overlays, detalle, providers,
+  HTTP y `file://`.
 
 ### Corregido
 
